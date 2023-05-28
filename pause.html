@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pause</title>
+  <link rel="stylesheet" href="pause.css">
+  <script src="scripts/tmi.min.js"></script>
+  <script defer="true" src="scripts/snake.js"></script>
+</head>
+<body>
+  <div class="banner">
+    C'est la Pause ! Je reviens vite !
+  </div>
+  <div class="scanlines"></div>
+  <div class="text-wrapper">
+    <p class="score-text">SCORE:
+      <span id="score">0</span>
+    </p>
+    <p class="score-text">HIGHSCORE:
+      <span id="high">0</span>
+    </p>
+    <p class="info-text">
+      !snake <br> pour savoir comment jouer.
+    </p>
+    <div id="chat">
+    </div>
+  </div>
+  <canvas width="800" height="800" id="game"></canvas>
+  <template id="chat-msg">
+    <div class="message">
+      <p class="user-info">
+        <span class="msg-username"></span>
+      </p>
+      <p class="msg-text">
+        
+      </p>
+    </div>
+  </template>
+</body>
+</html>

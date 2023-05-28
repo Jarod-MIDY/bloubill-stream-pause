@@ -1,0 +1,94 @@
+@font-face {
+  font-family: 'arcade';
+  src: url('../fonts/ARCADECLASSIC.TTF');
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: "arcade", sans-serif;
+}
+body {
+  padding: 0 5vw;
+  background: black;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.banner {
+  position: absolute;
+  padding: 1rem;
+  color: #fff;
+  font-size: 3rem;
+  font-weight: bold;
+  top: 1vh;
+  left: 40%;
+  text-align: center;
+}
+
+canvas {
+  border: 1px solid #f8f990; 
+  background-color:rgb(186, 186, 186);
+  margin: auto;
+}
+
+#chat {
+  height: 645px;
+  width: 360px;
+  background: #152238;
+  border: 1px solid #f8f990;
+  overflow-y: hidden;
+}
+#chat .message {
+  margin: 1rem;
+  background-color: #ffffff80;
+  border-radius: 5px;
+  font-size: 1rem;
+  padding: 0.25rem 0.5rem;
+}
+#chat .message p {
+  margin: 0;
+}
+#chat .message .user-info {
+  font-weight: bold;
+  text-shadow: 2px 3px 5px rgba(21, 18, 7, 0.8);
+}
+
+.emoticon {
+  max-width: 24px;
+  margin: 0.25rem;
+}
+
+.scanlines {
+  overflow: hidden;
+  mix-blend-mode: difference;
+}
+
+.scanlines::before {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  background: repeating-linear-gradient(to bottom, transparent 0%, rgba(255, 255, 255, 0.05) 0.5%, transparent 1%);
+  animation: fudge 7s ease-in-out alternate infinite;
+}
+
+.text-wrapper {
+  font-size: 1.5rem;
+}
+
+.score-text {
+  color: red;
+  margin: 0;
+}
+
+.score-text span {
+  color: yellow;
+}
+
+.info-text {
+  color :rgb(200, 199, 199);
+}
