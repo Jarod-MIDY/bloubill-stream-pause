@@ -16,15 +16,17 @@ class Storage {
   save(game) {
     localStorage.setItem(this.localName, JSON.stringify(game));
   }
+
+  clear() {
+    localStorage.removeItem(this.localName);
+  }
 }
 
 class Game {
-  scoring = {
-    score: 0,
-    highScore: 0,
-  };
+  score = 0;
+  highScore = 0;
 
-  snake = {
+  snakeParams = {
     x: 160,
     y: 160,
     dx: 32,
@@ -33,176 +35,189 @@ class Game {
     maxCells: 4
   };
 
+  grid = 32;
+
   constructor(canvas) {
+    this.canvas = canvas;
+    this.context = canvas.getContext('2d');
     this.highScoreElement = document.getElementById('high'),
     this.scoreElement = document.getElementById('score'),
     this.storage = new Storage(this, 'game');
     this.lastGame = this.storage.load();
-    this.snake = new Snake(canvas, this.getParams())
+    this.fruit = new Fruit(canvas, this.grid);
+    if (this.lastGame) {
+      this.snake = new Snake(canvas, this.lastGame.snake, this.grid);
+      this.fruit.new();
+      this.highScoreElement.innerHTML = this.lastGame.highScore;
+      this.scoreElement.innerHTML = this.lastGame.score;
+    } else {
+      this.snake = new Snake(canvas, this.getParams(), this.grid)
+    }
+  }
+
+  loop(){
+    this.context.clearRect(0,0,this.canvas.width,this.canvas.height);
+    this.snake.draw();
+    this.fruit.draw();
+    this.snake.cells.forEach(function(cell, index) {
+      // check collision with all cells after this one (modified bubble sort)
+      for (var i = index + 1; i < this.snake.cells.length; i++)
+      {
+        // snake ate apple
+        if (cell.x === this.fruit.x && cell.y === this.fruit.y) {
+          this.snake.grow(1);
+          this.addPoint(1);
+          this.fruit.new();
+        }
+        // snake occupies same space as a body part. reset game
+        if (cell.x === this.snake.cells[i].x && cell.y === this.snake.cells[i].y) { 
+            this.reset();
+        }
+      }
+    }.bind(this));
   }
 
   addPoint(point) {
     this.score += point;
-
+    this.scoreElement.innerHTML = this.score
     if (this.score > this.highScore) {
       this.highScore = this.score;
+      this.highScoreElement.innerHTML = this.highScore
       this.storage.save(this);
     }
   }
 
   getParams() {
-    if (this.lastGame.snake ) {
-      
+    if (this.lastGame.snakeParams ) {
+      return this.lastGame.snakeParams;
     }
+    return this.snakeParams;
+  }
+
+  reset() {
+    this.snake.setParams(this.snakeParams);
+    this.fruit.new();
+    this.score = 0;
+    this.scoreElement.innerHTML = 0;
+    this.storage.clear();
+  }
+}
+
+class Fruit {
+
+  x = 320;
+  y = 320;
+
+  constructor(canvas, grid) {
+    this.context = canvas.getContext('2d');
+    this.grid = grid;
+  }
+  
+  setPosition(params) {
+    this.x = params.x;
+    this.y = params.y;
+  }
+
+  draw() {
+    this.context.fillStyle = 'red';
+    this.context.fillRect(this.x, this.y, this.grid-1, this.grid-1);
+  }
+
+  new() {
+    this.x = getRandomInt(0, 25) * this.grid;
+    this.y = getRandomInt(0, 25) * this.grid;
   }
 }
 
 class Snake {
-  constructor(canvas, params) {
-      this.params = params;
-      var lastGame = localStorage.getItem('game');
-      lastGame = JSON.parse(lastGame)
+  constructor(canvas, params, grid) {
       this.canvas = canvas;
       this.context = canvas.getContext('2d');
-      this.grid = params.grid;
-      this.highScoreElement = params.highScoreElement;
-      this.scoreElement = params.scoreElement;
-      this.score = lastGame.score ? lastGame.score : 0;
-      this.scoreElement.innerHTML = this.score;
-      this.apple = params.apple;
-      this.snake = params.snake;
-      this.snake.maxCells += this.score;
-      this.max = 0;
-      this.drawFlag = false;
+      this.grid = grid;
+      this.setParams(params);
+    }
+    
+    setParams(params) {
+      this.x = params.x;
+      this.y = params.y;
+      this.dx = params.dx;
+      this.dy = params.dy;
+      this.cells = [...params.cells];
+      this.maxCells = params.maxCells;
   }
 
-  loop() {
-      this.context.clearRect(0,0,this.canvas.width,this.canvas.height);
-      this.drawApple();
+  draw() {
+    this.move();
+    // draw snake one cell at a time
+    this.context.fillStyle = 'green';
+    this.cells.forEach(function(cell) {
+      // drawing 1 px smaller than the grid creates a grid effect in the snake body so you can see how long it is
+      this.context.fillRect(cell.x, cell.y, this.grid-1, this.grid-1);  
+      
+    }.bind(this));
+}
+  move() {
       // move snake by it's velocity
-      this.snake.x += this.snake.dx;
-      this.snake.y += this.snake.dy;
+      this.x += this.dx;
+      this.y += this.dy;
       // wrap snake position horizontally on edge of screen
-      if (this.snake.x < 0) {
-        this.snake.x = this.canvas.width - this.grid;
+      if (this.x < 0) {
+        this.x = this.canvas.width - this.grid;
       }
-      else if (this.snake.x >= this.canvas.width) {
-        this.snake.x = 0;
+      else if (this.x >= this.canvas.width) {
+        this.x = 0;
       }
        // wrap snake position vertically on edge of screen
-      if (this.snake.y < 0) {
-        this.snake.y = this.canvas.height - this.grid;
+      if (this.y < 0) {
+        this.y = this.canvas.height - this.grid;
       }
-      else if (this.snake.y >= this.canvas.height) {
-        this.snake.y = 0;
+      else if (this.y >= this.canvas.height) {
+        this.y = 0;
       }
       // keep track of where snake has been. front of the array is always the head
-      this.snake.cells.unshift({x: this.snake.x, y: this.snake.y});
+      this.cells.unshift({x: this.x, y: this.y});
       // remove cells as we move away from them
-      if (this.snake.cells.length > this.snake.maxCells) {
-        this.snake.cells.pop();
+      if (this.cells.length > this.maxCells) {
+        this.cells.pop();
       }
-      this.drawSnake();
   }
-  move(message) {
+  updateDirection(message) {
       // left arrow key
-      if (message === 'gauche' && this.snake.dx === 0) {
-          this.snake.dx = -this.grid;
-          this.snake.dy = 0;
+      if (message === 'gauche' && this.dx === 0) {
+          this.dx = -this.grid;
+          this.dy = 0;
       }
       // up arrow key
-      else if (message === 'haut' && this.snake.dy === 0) {
-          this.snake.dx = 0;
-          this.snake.dy = -this.grid;
+      else if (message === 'haut' && this.dy === 0) {
+          this.dx = 0;
+          this.dy = -this.grid;
       }
       // right arrow key
-      else if (message === 'droite' && this.snake.dx === 0) {
-        this.snake.dx = this.grid;
-        this.snake.dy = 0;
+      else if (message === 'droite' && this.dx === 0) {
+        this.dx = this.grid;
+        this.dy = 0;
       }
       // down arrow key
-      else if (message === 'bas' && this.snake.dy === 0) {
-          this.snake.dx = 0;
-          this.snake.dy = this.grid;
+      else if (message === 'bas' && this.dy === 0) {
+          this.dx = 0;
+          this.dy = this.grid;
       }
-      else if (message === 'reverse'){
-          this.snake.cells.reverse();
-          this.snake.x = this.snake.cells[0].x;
-          this.snake.y = this.snake.cells[0].y;
-          this.snake.dx = -this.snake.dx;
-          this.snake.dy = -this.snake.dy;
+      else if (message === 'arriere'){
+          this.cells.reverse();
+          this.x = this.cells[0].x;
+          this.y = this.cells[0].y;
+          this.dx = -this.dx;
+          this.dy = -this.dy;
       }
   }
-  drawApple() {
-      this.context.fillStyle = 'red';
-      this.context.fillRect(this.apple.x, this.apple.y, this.grid-1, this.grid-1);
-  }
-  drawSnake() {
-      // draw snake one cell at a time
-      this.context.fillStyle = 'green';
-      this.snake.cells.forEach(function(cell, index) {
-        // drawing 1 px smaller than the grid creates a grid effect in the snake body so you can see how long it is
-        this.context.fillRect(cell.x, cell.y, this.grid-1, this.grid-1);  
-        // snake ate apple
-        if (cell.x === this.apple.x && cell.y === this.apple.y) {
-          this.snake.maxCells++;
-          this.score += 1;
-          //saving score for next playing. 
-          localStorage.setItem('game', JSON.stringify({
-            score: Number(this.score)
-          }));
-          this.scoreElement.innerHTML = this.score;
-          // canvas is 800x800 which is 25x25 grids 
-          this.apple.x = getRandomInt(0, 25) * this.grid;
-          this.apple.y = getRandomInt(0, 25) * this.grid;
-        }
-        // check collision with all cells after this one (modified bubble sort)
-        for (var i = index + 1; i < this.snake.cells.length; i++)
-        {
-          // snake occupies same space as a body part. reset game
-          if (cell.x === this.snake.cells[i].x && cell.y === this.snake.cells[i].y) { 
-            if(this.score > this.max)
-            {
-                this.max = this.score;
-            }
-              this.resetSnake();
-          }
-      }
-      }.bind(this)
-      );
-  }
-  resetSnake() {
-      this.snake.x = this.params.snake.x;
-      this.snake.y = this.params.snake.y;
-      this.snake.cells = this.params.snake.cells;
-      this.snake.maxCells = this.params.snake.maxCells;
-      this.snake.dx = this.params.snake.dx;
-      this.snake.dy = this.params.snake.dy;
-      this.apple.x = getRandomInt(0, 25) * this.grid;
-      this.apple.y = getRandomInt(0, 25) * this.grid;
-      this.highScoreElement.innerHTML = this.max;
+
+  grow(growth) {
+    this.maxCells += growth;
   }
 
   getSpeed () {
-    return this.snake.maxCells - this.params.snake.maxCells;
+    return this.maxCells;
   }
-}
-
-const PARAMS = {
-  grid: 32,
-  apple: {
-      x: 320,
-      y: 320
-  },
-  snake: {
-      x: 160,
-      y: 160,
-      dx: 32,
-      dy: 0,
-      cells: [],
-      maxCells: 4
-  },
-
 }
 
 const client = new tmi.Client({
@@ -212,13 +227,13 @@ const client = new tmi.Client({
 client.connect();
 
 var canvas = document.getElementById('game');
-const snake = new Snake(canvas, PARAMS);
+const game = new Game(canvas);
 
 function frame() {
-  snake.loop();
+  game.loop();
   setTimeout(function() {
     requestAnimationFrame(frame);
-  }, 225 - snake.getSpeed());
+  }, 225 - game.snake.getSpeed());
 }
 
 requestAnimationFrame(frame);
@@ -236,7 +251,7 @@ client.on("message", (channel, tags, message, self) => {
 
   const regex = new RegExp(allowedMessages.join("|"), 'g');
   if (orderFound = message.toLowerCase().match(regex)[0]) { // Erreur retournée si pas de match si aucune correspondance.
-    snake.move(orderFound);
+    game.snake.updateDirection(orderFound);
     
     if (tags["emotes"]) {
       msgText.insertAdjacentHTML('beforeend', formatEmotes(message, tags["emotes"]));
