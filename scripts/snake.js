@@ -50,6 +50,8 @@ class Grid {
 
 class Game {
 
+  allowedColors = ['pink', 'orange', 'yellow', 'purple', 'blue', 'purple', 'green', 'brown'];
+
   score = 0;
 
   highScore = 0;
@@ -64,6 +66,8 @@ class Game {
   };
 
   constructor(canvas) {
+    this.cheatActivated = false;
+    this.cheatLoopCount = 0;
     this.traps = [];
     this.eatables = [];
     this.canvas = canvas;
@@ -76,6 +80,7 @@ class Game {
       this.grid = new Grid(this.lastGame.grid.occupiedCells);
       this.snake = new Snake(canvas, this.lastGame.snake, this.grid);
       this.lastGame.eatables.forEach(function(eatable) {
+        console.log(eatable);
         this.eatables.push(new Eatable(canvas, this.grid, eatable.type, true, {x: eatable.x, y: eatable.y}));
       }.bind(this))
       this.highScoreElement.innerHTML = this.lastGame.highScore;
@@ -91,27 +96,40 @@ class Game {
 
   loop(){
     this.context.clearRect(0,0,this.canvas.width,this.canvas.height);
-    this.snake.draw();
+    if (this.cheatLoopCount === 100) {
+      this.cheatActivated = false;
+    }
+    if (this.cheatActivated) {
+      this.cheatLoopCount++;
+      this.snake.draw(this.allowedColors[getRandomInt(0, this.allowedColors.length-1)]);
+    } else {
+      this.snake.draw();
+    }
     // Create new object
     if (this.score % 2 === 0 && this.eatables.length < Math.ceil(this.score / 2)) {
       this.eatables.push(new Eatable(this.canvas, this.grid));
+      this.storage.save(this);
     }
     if (this.eatables.length > 0) {
-      this.eatables.forEach(function(eatable) {
-        eatable.draw();
+      this.eatables.forEach(eatable => {
+        if (this.cheatActivated) {
+          eatable.draw(this.allowedColors[getRandomInt(0, this.allowedColors.length-1)]);
+        } else {
+          eatable.draw();
+        }
       });
     }
-    this.snake.cells.forEach(function(cell, index) {
+    this.snake.cells.forEach((cell, index) => {
       // check collision with all cells after this one (modified bubble sort)
       for (let i = index + 1; i < this.snake.cells.length; i++)
       {
         // snake collides with object
-        this.eatables.forEach(function(eatable) {
+        this.eatables.forEach(eatable => {
           if (cell.x === eatable.x && cell.y === eatable.y) {
             eatable.new();
             this.addPoint(eatable.doEffect(this.snake));
           }
-        }.bind(this));
+        });
         // snake occupies same space as a body part. reset game
         if (i in this.snake.cells) {
           if (cell.x === this.snake.cells[i].x && cell.y === this.snake.cells[i].y) { 
@@ -119,7 +137,7 @@ class Game {
           }
         }
       }
-    }.bind(this));
+    });
   }
 
   addPoint(point) {
@@ -129,6 +147,9 @@ class Game {
       this.highScore = this.score;
       this.highScoreElement.innerHTML = this.highScore
       this.storage.save(this);
+    }
+    if (this.score < 0) {
+      this.reset();
     }
   }
 
@@ -142,19 +163,27 @@ class Game {
   reset() {
     this.grid.clearCells();
     this.snake.setParams(this.snakeParams);
-    this.fruit.new();
+    this.eatables = [new Eatable(canvas, this.grid, 'apple')];
     this.score = 0;
     this.scoreElement.innerHTML = 0;
     this.storage.clear();
   }
+
+  cheatCode(bool = false) {
+    this.cheatActivated = bool;
+  }
 }
 
 class Eatable {
+
+  allowedColors = ['pink', 'orange', 'yellow', 'purple', 'blue', 'purple'];
+
   constructor (canvas, grid, type = '', saved = false, position) {
     this.context = canvas.getContext('2d');
     this.grid = grid;
     this.type = type ? type : this.getType(); 
     this.points = 0;
+    this.setColor();
     if (saved) {
       this.setPosition(position.x, position.y);
     } else {
@@ -243,13 +272,18 @@ class Eatable {
     }
   }
 
-  draw() {
-    this.context.fillStyle = this.type === 'apple' ? 'red' : 'blue';
+  setColor() {
+    this.color = this.type === 'apple' ? 'red' : this.allowedColors[getRandomInt(0, this.allowedColors.length-1)];
+  }
+
+  draw(color = '') {
+    this.context.fillStyle = color ? color : this.color;
     this.context.fillRect(this.x, this.y, this.grid.getSize()-1, this.grid.getSize()-1);
   }
 }
 
 class Snake {
+
   constructor(canvas, params, grid) {
       this.canvas = canvas;
       this.speedModifier = 0;
@@ -267,16 +301,19 @@ class Snake {
       this.maxCells = params.maxCells;
   }
 
-  draw() {
+  draw(color = '') {
     this.move();
     // draw snake one cell at a time
-    this.context.fillStyle = 'green';
-    this.cells.forEach(function(cell) {
+    this.cells.forEach(function(cell, index) {
+      this.context.fillStyle = color ? color : '#0b852b';
+      if (index === 0) {
+        this.context.fillStyle = color ? color : '#11ba3d';
+      }
       // drawing 1 px smaller than the grid creates a grid effect in the snake body so you can see how long it is
       this.context.fillRect(cell.x, cell.y, this.grid.getSize()-1, this.grid.getSize()-1);  
       
     }.bind(this));
-}
+  }
   move() {
       // move snake by it's velocity
       this.x += this.dx;
@@ -368,6 +405,7 @@ client.on("message", (channel, tags, message, self) => {
   if (tags["display-name"] === "Moobot") return true; 
   
   const allowedMessages = ["haut", "bas", "droite", "gauche", "arriere", "stop"];
+  const commandMessages = ["haut", "gauche", "bas", "droite", "haut", "gauche", "bas", "droite", "reverse"]
   const msgWrapper = document.querySelector("#chat");
   const msgTemplate = document.querySelector("#chat-msg");
 
@@ -375,14 +413,14 @@ client.on("message", (channel, tags, message, self) => {
   let msgText = msgClone.querySelector('.msg-text')
   let msgUserName = msgClone.querySelector(".msg-username");
 
-  
-  /*
-  const regex = new RegExp(allowedMessages.join("|"), 'g');
-  if (orderFound = message.toLowerCase().match(regex)[0]) { // Erreur retournée si pas de match si aucune correspondance.
-    game.snake.updateDirection(orderFound);
-  */
   const lowerCaseMessage = message.toLowerCase().split(/\b/) // \b is for word border so it splits on words end
   const trueMessage = allowedMessages.find(allowedMessage => lowerCaseMessage.includes(allowedMessage))
+
+  const commandList = message.toLowerCase().split(/\b/).filter(mess => /^[a-z]+$/.test(mess))
+  if (commandMessages.every((command, index) => command === commandList[index])) {
+    game.cheatCode(true);
+  }
+
   if (trueMessage === undefined) return true;
   
   game.snake.updateDirection(trueMessage);
