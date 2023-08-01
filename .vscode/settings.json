@@ -1,0 +1,19 @@
+{
+  "eslint.codeAction.showDocumentation": {
+    "enable": true
+  },
+  "eslint.validate": ["javascript", "typescript"],
+  "eslint.lintTask.options": "-c .eslintrc",
+  "eslint.lintTask.enable": true,
+  "eslint.debug": true,
+  "eslint.run": "onSave",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true,
+    "source.fixAll.prettier": true,
+    "source.fixAll": true
+  },
+  "files.eol": "\n",
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "eslint.format.enable": true,
+  "editor.formatOnSave": true
+}

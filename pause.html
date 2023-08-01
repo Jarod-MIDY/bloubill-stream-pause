@@ -1,39 +1,51 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <title>Pause</title>
-  <link rel="stylesheet" href="pause.css">
-  <script src="scripts/tmi.min.js"></script>
-  <script defer="true" src="scripts/snake.js"></script>
-</head>
-<body>
-  <div class="banner">
-    C'est la Pause ! Je reviens vite !
-  </div>
-  <div class="scanlines"></div>
-  <div class="text-wrapper">
-    <p class="score-text">SCORE:
-      <span id="score">0</span>
-    </p>
-    <p class="score-text">HIGHSCORE:
-      <span id="high">0</span>
-    </p>
-    <p class="info-text">
-      !snake <br> pour savoir comment jouer.
-    </p>
-    <div id="chat">
-    </div>
-  </div>
-  <canvas width="800" height="800" id="game"></canvas>
-  <template id="chat-msg">
-    <div class="message">
-      <p class="user-info">
-        <span class="msg-username"></span>
+  <head>
+    <title>Pause</title>
+    <link rel="stylesheet" href="pause.css" />
+    <script>
+      let exports = {};
+    </script>
+    <script defer="true" src="index.js"></script>
+  </head>
+  <body class="scanlines">
+    <div class="text-wrapper">
+      <p class="score-text">
+        SCORE:
+        <span id="score">0</span>
       </p>
-      <p class="msg-text">
-        
+      <p class="score-text">
+        HIGHSCORE:
+        <span id="high">0</span>
       </p>
+      <p class="info-text">
+        !snake <br />
+        pour savoir comment jouer.
+      </p>
+      <div id="chat" class="message-wrapper"></div>
     </div>
-  </template>
-</body>
+    <div class="canvas-wrapper">
+      <div class="banner">C'est la Pause ! Je reviens vite !</div>
+      <canvas width="800" height="800" id="game"></canvas>
+    </div>
+    <div class="text-wrapper">
+      <p class="info-text">
+        Liste des <br />evenements recent du jeu.
+      </p>
+      <div id="gameLog" class="message-wrapper"></div>
+    </div>
+    <template id="chat-msg">
+      <div class="message">
+        <p class="user-info">
+          <span class="msg-username"></span>
+        </p>
+        <p class="msg-text"></p>
+      </div>
+    </template>
+    <template id="gameLog-msg">
+      <div class="message">
+        <p class="msg-text"></p>
+      </div>
+    </template>
+  </body>
 </html>
