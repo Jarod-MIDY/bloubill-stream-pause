@@ -3,7 +3,7 @@ export class CommandList {
     downCmd: string[] = ["bas", "down"];
     leftCmd: string[] = ["gauche", "left", "comuniste", "jlm"];
     rightCmd: string[] = ["droite", "right", "fn", "mlp"];
-    reverseCmd: string[] = ["arriere", "reverse", "em", "macron"];
+    reverseCmd: string[] = ["arriere", "reverse", "rem", "macron"];
     
     cmdToExecute: string[] = [];
 
