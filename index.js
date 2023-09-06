@@ -2431,7 +2431,7 @@ ${JSON.stringify(message, null, 4)}`);
 
   // scripts/Shared/utils.ts
   function getRandomInt(min, max) {
-    return Math.floor(Math.random() * (max - min)) + min;
+    return Math.floor(Math.random() * (max - min) + min);
   }
 
   // scripts/Shared/Grid.ts
@@ -2521,7 +2521,6 @@ ${JSON.stringify(message, null, 4)}`);
       snake.params.cells = [];
       this.gameUI.addLogEvent("Oh non ! Un t\xE9l\xE9porteur !");
       snake.params.position = this.grid.generateRandomPoint();
-      snake.params.cells.push(snake.params.position);
       return this.points;
     }
     apple(snake) {
@@ -2547,13 +2546,14 @@ ${JSON.stringify(message, null, 4)}`);
     }
     speedChange(snake) {
       let bool = getRandomInt(0, 1);
-      snake.setSpeedModifier(bool ? 5 : -5);
+      snake.setSpeedModifier(bool ? 50 : -25);
       let logText = bool ? "vitesse augmente\u0301e" : "vitesse diminue\u0301e";
       this.gameUI.addLogEvent(logText);
       return this.points;
     }
     getType() {
       let type = getRandomInt(0, 3);
+      console.log(type);
       switch (type) {
         case 0:
           return "teleport";
@@ -2610,8 +2610,8 @@ ${JSON.stringify(message, null, 4)}`);
       });
     }
     move() {
-      this.params.position.x += this.params.dirX;
-      this.params.position.y += this.params.dirY;
+      this.params.position.x += this.params.dirX * this.grid.getSize();
+      this.params.position.y += this.params.dirY * this.grid.getSize();
       if (this.params.position.x < 0) {
         this.params.position.x = this.canvas.width - this.grid.getSize();
       } else if (this.params.position.x >= this.canvas.width) {
@@ -2631,25 +2631,30 @@ ${JSON.stringify(message, null, 4)}`);
       }
     }
     updateDirection(message) {
-      if (message === "left" && this.params.dirX === 0) {
-        this.params.dirX = -this.grid.getSize();
-        this.params.dirY = 0;
-      } else if (message === "up" && this.params.dirY === 0) {
-        this.params.dirX = 0;
-        this.params.dirY = -this.grid.getSize();
-      } else if (message === "right" && this.params.dirX === 0) {
-        this.params.dirX = this.grid.getSize();
-        this.params.dirY = 0;
-      } else if (message === "down" && this.params.dirY === 0) {
-        this.params.dirX = 0;
-        this.params.dirY = this.grid.getSize();
-      } else if (message === "reverse") {
+      const allowedDirectionChanges = {
+        whenVertical: {
+          left: [-1, 0],
+          right: [1, 0],
+          up: [this.params.dirX, this.params.dirY],
+          down: [this.params.dirX, this.params.dirY],
+          reverse: [-this.params.dirX, -this.params.dirY]
+        },
+        whenHorizontal: {
+          left: [this.params.dirX, this.params.dirY],
+          right: [this.params.dirX, this.params.dirY],
+          up: [0, -1],
+          down: [0, 1],
+          reverse: [-this.params.dirX, -this.params.dirY]
+        }
+      };
+      if (message === "reverse") {
         this.params.cells.reverse();
         this.params.position.x = this.params.cells[0].x;
         this.params.position.y = this.params.cells[0].y;
-        this.params.dirX = -this.params.dirX;
-        this.params.dirY = -this.params.dirY;
       }
+      const currentDirection = this.params.dirX === 0 ? "whenVertical" : "whenHorizontal";
+      this.params.dirX = allowedDirectionChanges[currentDirection][message][0];
+      this.params.dirY = allowedDirectionChanges[currentDirection][message][1];
     }
     grow(growth) {
       this.params.maxCells += growth;
@@ -2664,11 +2669,11 @@ ${JSON.stringify(message, null, 4)}`);
 
   // scripts/Snake/CommandList.ts
   var CommandList = class {
-    upCmd = ["haut", "up"];
-    downCmd = ["bas", "down"];
-    leftCmd = ["gauche", "left", "comuniste", "jlm"];
+    upCmd = ["haut", "up", "good", "bon"];
+    downCmd = ["bas", "down", "evil", "mauvais"];
+    leftCmd = ["gauche", "left", "communiste", "jlm"];
     rightCmd = ["droite", "right", "fn", "mlp"];
-    reverseCmd = ["arriere", "reverse", "em", "macron"];
+    reverseCmd = ["arriere", "reverse", "rem", "macron"];
     cmdToExecute = [];
     aliasToCmd(cmd) {
       if (this.upCmd.includes(cmd)) {
@@ -2690,7 +2695,13 @@ ${JSON.stringify(message, null, 4)}`);
       return this.cmdToExecute;
     }
     getAllowedCmds() {
-      return [...this.upCmd, ...this.downCmd, ...this.leftCmd, ...this.rightCmd, ...this.reverseCmd];
+      return [
+        ...this.upCmd,
+        ...this.downCmd,
+        ...this.leftCmd,
+        ...this.rightCmd,
+        ...this.reverseCmd
+      ].join("|");
     }
   };
 
@@ -2705,8 +2716,8 @@ ${JSON.stringify(message, null, 4)}`);
     getTimeElapsed() {
       return Date.now() - this.now;
     }
-    stopWating() {
-      return this.getTimeElapsed() >= this.waitingTime ? true : false;
+    stopWating(timeOffset = 0) {
+      return this.getTimeElapsed() >= this.waitingTime + timeOffset ? true : false;
     }
     reset() {
       this.now = Date.now();
@@ -2731,7 +2742,7 @@ ${JSON.stringify(message, null, 4)}`);
     highScore = 0;
     snakeParams = {
       position: { x: 160, y: 160 },
-      dirX: 32,
+      dirX: 1,
       dirY: 0,
       cells: [],
       maxCells: 4
@@ -2739,13 +2750,13 @@ ${JSON.stringify(message, null, 4)}`);
     cheatCommand = [
       "haut",
       "gauche",
-      "bas",
-      "droite",
-      "haut",
       "gauche",
       "bas",
+      "reverse",
       "droite",
-      "arriere"
+      "droite",
+      "droite",
+      "reverse"
     ];
     cheatActivated = false;
     cheatLoopCount = 0;
@@ -2762,7 +2773,6 @@ ${JSON.stringify(message, null, 4)}`);
     constructor(canvas2, gameUI2) {
       this.canvas = canvas2;
       this.gameUI = gameUI2;
-      this.timer = new GameTimer(5e3);
       this.context = canvas2.getContext("2d");
       this.storage = new GameStorage(this, "game");
       this.commandList = new CommandList();
@@ -2791,6 +2801,7 @@ ${JSON.stringify(message, null, 4)}`);
         this.eatables.push(new Eatable(canvas2, this.grid, this.gameUI, "apple"));
         this.snake = new Snake(canvas2, this.getParams(), this.grid);
       }
+      this.timer = new GameTimer(1e3);
     }
     readMessage(message) {
       this.commandList.saveCmd(message);
@@ -2805,17 +2816,23 @@ ${JSON.stringify(message, null, 4)}`);
       return this.cheatCommand;
     }
     loop() {
-      if (this.timer.stopWating() && this.commandList.cmdToExecute.length > 0) {
-        this.commandList.cmdToExecute.forEach((cmd) => {
-          this.snake.updateDirection(cmd);
+      if (this.timer.stopWating(this.getSpeed())) {
+        if (this.commandList.cmdToExecute.length > 0) {
+          this.commandList.cmdToExecute.forEach((cmd) => {
+            this.snake.updateDirection(cmd);
+            this.snake.move();
+          });
+          this.commandList.cmdToExecute = [];
+          this.storage.save(this);
+          this.timer.reset();
+        } else if (this.commandList.cmdToExecute.length == 0) {
           this.snake.move();
-        });
-        this.storage.save(this);
-        this.commandList.cmdToExecute = [];
-        this.timer.reset();
+          this.storage.save(this);
+          this.timer.reset();
+        }
       }
       this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      if (this.cheatLoopCount === 100) {
+      if (this.cheatLoopCount === 500) {
         this.cheatActivated = false;
       }
       if (this.cheatActivated) {
@@ -2826,7 +2843,7 @@ ${JSON.stringify(message, null, 4)}`);
       } else {
         this.snake.draw();
       }
-      if (this.score % 2 === 0 && this.eatables.length < Math.ceil(this.score / 2)) {
+      if (this.score % 2 === 0 && this.eatables.length < Math.ceil(this.score)) {
         this.eatables.push(new Eatable(this.canvas, this.grid, this.gameUI));
         this.storage.save(this);
       }
@@ -2853,6 +2870,7 @@ ${JSON.stringify(message, null, 4)}`);
           });
           if (i in snakeCells) {
             if (cell.x === snakeCells[i].x && cell.y === snakeCells[i].y) {
+              this.gameUI.addLogEvent("Le snake c'est mordu lui m\xEAme !");
               this.reset();
             }
           }
@@ -2891,7 +2909,6 @@ ${JSON.stringify(message, null, 4)}`);
   };
 
   // scripts/Shared/index.ts
-  console.log("pouet");
   var Client2 = new tmi.Client({
     channels: ["bloubill"]
   });
@@ -2907,9 +2924,7 @@ ${JSON.stringify(message, null, 4)}`);
   var game = new Game(canvas, gameUI);
   function frame() {
     game.loop();
-    setTimeout(function() {
-      requestAnimationFrame(frame);
-    }, 225 - game.getSpeed());
+    requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
   Client2.on("message", (channel, tags, message, self) => {
@@ -2917,8 +2932,7 @@ ${JSON.stringify(message, null, 4)}`);
       return true;
     if (tags["display-name"] === "Moobot")
       return true;
-    const allowedMessages = game.getAllowedMessages();
-    const commandMessages = game.getCheatCommand();
+    const cheatMessages = game.getCheatCommand();
     const msgWrapper = document.querySelector("#chat");
     const msgTemplate = document.querySelector(
       "#chat-msg"
@@ -2928,17 +2942,18 @@ ${JSON.stringify(message, null, 4)}`);
     let msgUserName = msgClone.querySelector(
       ".msg-username"
     );
-    const lowerCaseMessage = message.toLowerCase().split(/\b/);
-    const trueMessage = allowedMessages.find(
-      (allowedMessage) => lowerCaseMessage.includes(allowedMessage)
-    );
-    const commandList = message.toLowerCase().split(/\b/).filter((mess) => /^[a-z]+$/.test(mess));
-    if (commandMessages.every((command, index) => command === commandList[index])) {
+    const messageCmds = Array.from(
+      message.toLowerCase().matchAll(game.getAllowedMessages())
+    ).flat();
+    if (game.getCheatCommand().every((value, index) => value === messageCmds[index])) {
+      console.log("hello");
       game.toggleCheat(true);
     }
-    if (trueMessage === void 0)
+    if (messageCmds.length === 0)
       return true;
-    game.readMessage(trueMessage);
+    messageCmds.forEach((message2) => {
+      game.readMessage(message2);
+    });
     if (tags["emotes"]) {
       msgText.insertAdjacentHTML(
         "beforeend",

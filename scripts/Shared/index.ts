@@ -20,9 +20,7 @@ const game = new Game(canvas, gameUI);
 
 function frame() {
   game.loop();
-  setTimeout(function () {
-    requestAnimationFrame(frame);
-  }, 225 - game.getSpeed());
+  requestAnimationFrame(frame);
 }
 
 requestAnimationFrame(frame);
@@ -31,8 +29,7 @@ Client.on("message", (channel, tags, message, self) => {
   if (self) return true;
   if (tags["display-name"] === "Moobot") return true;
 
-  const allowedMessages = game.getAllowedMessages();
-  const commandMessages = game.getCheatCommand();
+  const cheatMessages = game.getCheatCommand();
   const msgWrapper: Element = document.querySelector("#chat") as Element;
 
   const msgTemplate: HTMLTemplateElement = document.querySelector(
@@ -44,24 +41,20 @@ Client.on("message", (channel, tags, message, self) => {
     ".msg-username"
   ) as HTMLElement;
 
-  const lowerCaseMessage = message.toLowerCase().split(/\b/); // \b is for word border so it splits on words end
-  const trueMessage = allowedMessages.find((allowedMessage) =>
-    lowerCaseMessage.includes(allowedMessage)
-  );
+  const messageCmds: string[] = Array.from(
+    message.toLowerCase().matchAll(game.getAllowedMessages())
+  ).flat() as string[];
 
-  const commandList = message
-    .toLowerCase()
-    .split(/\b/)
-    .filter((mess) => /^[a-z]+$/.test(mess));
   if (
-    commandMessages.every((command, index) => command === commandList[index])
+    game.getCheatCommand().every((value, index) => value === messageCmds[index])
   ) {
     game.toggleCheat(true);
   }
 
-  if (trueMessage === undefined) return true;
-
-  game.readMessage(trueMessage);
+  if (messageCmds.length === 0) return true;
+  messageCmds.forEach((message) => {
+    game.readMessage(message);
+  });
   if (tags["emotes"]) {
     msgText.insertAdjacentHTML(
       "beforeend",

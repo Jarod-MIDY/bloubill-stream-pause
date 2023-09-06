@@ -1,22 +1,22 @@
 export class GameTimer {
-    waitingTime: number;
-    now: number;
-    constructor (
-        waitingTime: number
-    ) {
-        this.waitingTime = waitingTime;
-        this.now = Date.now();
-    }
+  waitingTime: number;
+  now: number;
+  constructor(waitingTime: number) {
+    this.waitingTime = waitingTime;
+    this.now = Date.now();
+  }
 
-    getTimeElapsed(): number {
-        return Date.now() - this.now;
-    }
+  getTimeElapsed(): number {
+    return Date.now() - this.now;
+  }
 
-    stopWating(): boolean {
-        return (this.getTimeElapsed() >= this.waitingTime) ? true : false;
-    }
+  stopWating(timeOffset: number = 0): boolean {
+    return this.getTimeElapsed() >= this.waitingTime + timeOffset
+      ? true
+      : false;
+  }
 
-    reset(){
-        this.now = Date.now();
-    }
+  reset() {
+    this.now = Date.now();
+  }
 }

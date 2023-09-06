@@ -1,13 +1,13 @@
 export interface GameInterface {
-    readMessage(message: string): void;
+  readMessage(message: string): void;
 
-    toggleCheat(cheatCode: boolean): void;
+  toggleCheat(cheatCode: boolean): void;
 
-    getAllowedMessages(): string[];
+  getAllowedMessages(): string;
 
-    getCheatCommand(): string[];
+  getCheatCommand(): string[];
 
-    getSpeed(): number;
+  getSpeed(): number;
 
-    reset(): void;
+  reset(): void;
 }

@@ -7,18 +7,18 @@ export class Snake {
   speedModifier: number = 0;
   grid: Grid;
   params: Params;
+
   constructor(canvas: HTMLCanvasElement, params: Params, grid: Grid) {
     this.canvas = canvas;
     this.context = canvas.getContext("2d") as CanvasRenderingContext2D;
     this.grid = grid;
     this.params = params;
     for (let index = 0; index < params.maxCells; index++) {
-        this.move();      
+      this.move();
     }
   }
 
   draw(color: string = "") {
-    // this.move();
     // draw snake one cell at a time
     this.params.cells.forEach((cell: GridPoint, index: number) => {
       this.context.fillStyle = color ? color : "#0b852b";
@@ -36,8 +36,8 @@ export class Snake {
   }
   move() {
     // move snake by it's velocity
-    this.params.position.x += this.params.dirX;
-    this.params.position.y += this.params.dirY;
+    this.params.position.x += this.params.dirX * this.grid.getSize();
+    this.params.position.y += this.params.dirY * this.grid.getSize();
     // wrap snake position horizontally on edge of screen
     if (this.params.position.x < 0) {
       this.params.position.x = this.canvas.width - this.grid.getSize();
@@ -61,33 +61,32 @@ export class Snake {
     }
   }
   updateDirection(message: string) {
-    // left arrow key
-    if (message === "left" && this.params.dirX === 0) {
-      this.params.dirX = -this.grid.getSize();
-      this.params.dirY = 0;
-    }
-    // up arrow key
-    else if (message === "up" && this.params.dirY === 0) {
-      this.params.dirX = 0;
-      this.params.dirY = -this.grid.getSize();
-    }
-    // right arrow key
-    else if (message === "right" && this.params.dirX === 0) {
-      this.params.dirX = this.grid.getSize();
-      this.params.dirY = 0;
-    }
-    // down arrow key
-    else if (message === "down" && this.params.dirY === 0) {
-      this.params.dirX = 0;
-      this.params.dirY = this.grid.getSize();
-    } 
-    else if (message === "reverse") {
+    const allowedDirectionChanges = {
+      whenVertical: {
+        left: [-1, 0],
+        right: [1, 0],
+        up: [this.params.dirX, this.params.dirY],
+        down: [this.params.dirX, this.params.dirY],
+        reverse: [-this.params.dirX, -this.params.dirY],
+      },
+      whenHorizontal: {
+        left: [this.params.dirX, this.params.dirY],
+        right: [this.params.dirX, this.params.dirY],
+        up: [0, -1],
+        down: [0, 1],
+        reverse: [-this.params.dirX, -this.params.dirY],
+      },
+    };
+
+    if (message === "reverse") {
       this.params.cells.reverse();
       this.params.position.x = this.params.cells[0].x;
       this.params.position.y = this.params.cells[0].y;
-      this.params.dirX = -this.params.dirX;
-      this.params.dirY = -this.params.dirY;
     }
+    const currentDirection =
+      this.params.dirX === 0 ? "whenVertical" : "whenHorizontal";
+    this.params.dirX = allowedDirectionChanges[currentDirection][message][0];
+    this.params.dirY = allowedDirectionChanges[currentDirection][message][1];
   }
 
   grow(growth: number) {

@@ -64,7 +64,6 @@ export class Eatable {
     snake.params.cells = [];
     this.gameUI.addLogEvent("Oh non ! Un téléporteur !");
     snake.params.position = this.grid.generateRandomPoint();
-    snake.params.cells.push(snake.params.position);
     return this.points;
   }
   apple(snake: Snake): number {
@@ -90,13 +89,14 @@ export class Eatable {
   }
   speedChange(snake: Snake): number {
     let bool = getRandomInt(0, 1);
-    snake.setSpeedModifier(bool ? 5 : -5);
+    snake.setSpeedModifier(bool ? 50 : -25);
     let logText = bool ? "vitesse augmentée" : "vitesse diminuée";
     this.gameUI.addLogEvent(logText);
     return this.points;
   }
   getType(): string {
     let type: number = getRandomInt(0, 3);
+    console.log(type);
     switch (type) {
       case 0:
         return "teleport";

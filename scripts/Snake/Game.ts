@@ -1,7 +1,6 @@
 import { GameInterface } from "../Shared/GameInterface";
 import { GameStorage } from "../Shared/GameStorage";
 import { Grid } from "../Shared/Grid";
-import { GridPoint } from "../Shared/GridPointType";
 import { Eatable } from "./Eatable";
 import { Snake } from "./Snake";
 import { Params } from "./SnakeParamsType";
@@ -27,7 +26,7 @@ export class Game implements GameInterface {
   highScore: number = 0;
   snakeParams: Params = {
     position: { x: 160, y: 160 },
-    dirX: 32,
+    dirX: 1,
     dirY: 0,
     cells: [],
     maxCells: 4,
@@ -35,13 +34,13 @@ export class Game implements GameInterface {
   cheatCommand: string[] = [
     "haut",
     "gauche",
-    "bas",
-    "droite",
-    "haut",
     "gauche",
     "bas",
+    "reverse",
     "droite",
-    "arriere",
+    "droite",
+    "droite",
+    "reverse",
   ];
   cheatActivated: boolean = false;
   cheatLoopCount = 0;
@@ -58,7 +57,6 @@ export class Game implements GameInterface {
   constructor(canvas: HTMLCanvasElement, gameUI: GameUI) {
     this.canvas = canvas;
     this.gameUI = gameUI;
-    this.timer = new GameTimer(5000);
     this.context = canvas.getContext("2d") as CanvasRenderingContext2D;
     this.storage = new GameStorage(this, "game");
     this.commandList = new CommandList();
@@ -87,6 +85,7 @@ export class Game implements GameInterface {
       this.eatables.push(new Eatable(canvas, this.grid, this.gameUI, "apple"));
       this.snake = new Snake(canvas, this.getParams(), this.grid);
     }
+    this.timer = new GameTimer(1000);
   }
   readMessage(message: string): void {
     this.commandList.saveCmd(message);
@@ -95,25 +94,35 @@ export class Game implements GameInterface {
     return this.snake.getSpeed();
   }
 
-  getAllowedMessages(): string[] {
+  getAllowedMessages(): string {
     return this.commandList.getAllowedCmds();
   }
   getCheatCommand(): string[] {
     return this.cheatCommand;
   }
   loop() {
-    if (this.timer.stopWating() && this.commandList.cmdToExecute.length > 0) {
-      this.commandList.cmdToExecute.forEach((cmd) => {
-        this.snake.updateDirection(cmd);
+    if (this.timer.stopWating(this.getSpeed())) {
+      if (this.commandList.cmdToExecute.length > 0) {
+        this.commandList.cmdToExecute.forEach((cmd) => {
+          this.snake.updateDirection(cmd);
+          this.snake.move();
+        });
+        this.commandList.cmdToExecute = [];
+        this.storage.save(this);
+        this.timer.reset();
+      } else if (this.commandList.cmdToExecute.length == 0) {
         this.snake.move();
-      })
-      this.storage.save(this);
-      this.commandList.cmdToExecute = [];
-      this.timer.reset();
+        this.storage.save(this);
+        this.timer.reset();
+      }
+      if (this.cheatActivated) {
+        this.allowedColors[getRandomInt(0, this.allowedColors.length - 1)];
+      }
     }
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    if (this.cheatLoopCount === 100) {
+    if (this.cheatLoopCount === 600) {
       this.cheatActivated = false;
+      this.cheatLoopCount = 0;
     }
     if (this.cheatActivated) {
       this.cheatLoopCount++;
@@ -124,10 +133,7 @@ export class Game implements GameInterface {
       this.snake.draw();
     }
     // Create new object
-    if (
-      this.score % 2 === 0 &&
-      this.eatables.length < Math.ceil(this.score / 2)
-    ) {
+    if (this.score % 2 === 0 && this.eatables.length < Math.ceil(this.score)) {
       this.eatables.push(new Eatable(this.canvas, this.grid, this.gameUI));
       this.storage.save(this);
     }
@@ -142,7 +148,7 @@ export class Game implements GameInterface {
         }
       });
     }
-    let snakeCells: GridPoint[] = this.snake.params.cells;
+    let snakeCells = this.snake.params.cells;
     snakeCells.forEach((cell, index) => {
       // check collision with all cells after this one (modified bubble sort)
       for (let i = index + 1; i < snakeCells.length; i++) {
@@ -157,6 +163,7 @@ export class Game implements GameInterface {
         // snake occupies same space as a body part. reset game
         if (i in snakeCells) {
           if (cell.x === snakeCells[i].x && cell.y === snakeCells[i].y) {
+            this.gameUI.addLogEvent("Le snake c'est mordu lui même !");
             this.reset();
           }
         }
