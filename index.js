@@ -2469,33 +2469,29 @@ ${JSON.stringify(message, null, 4)}`);
 
   // scripts/Snake/Eatable.ts
   var Eatable = class {
-    allowedColors = [
+    position;
+    grid;
+    context;
+    type = this.constructor.name;
+    color;
+    colors = [
       "pink",
+      "navy",
+      "deeppink",
       "orange",
+      "orangered",
+      "chartreuse",
       "yellow",
       "purple",
       "blue",
-      "purple"
+      "purple",
+      "green",
+      "brown"
     ];
-    color = "";
-    context;
-    grid;
-    type;
-    points;
-    position = { x: 0, y: 0 };
-    gameUI;
-    constructor(canvas2, grid, gameUI2, type = "", saved = false, position) {
-      this.context = canvas2.getContext("2d");
+    constructor(grid, context) {
       this.grid = grid;
-      this.type = type ? type : this.getType();
-      this.points = 0;
-      this.gameUI = gameUI2;
-      this.setColor();
-      if (saved) {
-        position && this.setPosition(position);
-      } else {
-        this.newRandomPosition();
-      }
+      this.context = context;
+      this.color = this.defaultColor();
     }
     newRandomPosition() {
       this.position = this.grid.generateRandomPoint();
@@ -2503,79 +2499,134 @@ ${JSON.stringify(message, null, 4)}`);
     setPosition(position) {
       this.position = position;
     }
+    defaultColor() {
+      return "gray";
+    }
+    getColor(cheatActivated) {
+      if (cheatActivated) {
+        return this.colors[Math.floor(Math.random() * this.colors.length)];
+      }
+      return this.color;
+    }
     doEffect(snake) {
-      switch (this.type) {
-        case "teleport":
-          return this.teleport(snake);
-        case "speed_change":
-          return this.speedChange(snake);
-        case "golden_apple":
-          return this.goldenApple(snake);
-        case "green_apple":
-          return this.greenApple(snake);
-        default:
-          return this.apple(snake);
-      }
+      return 0;
     }
-    teleport(snake) {
-      snake.params.cells = [];
-      this.gameUI.addLogEvent("Oh non ! Un t\xE9l\xE9porteur !");
-      snake.params.position = this.grid.generateRandomPoint();
-      return this.points;
+    getLogName() {
+      return "eatable_default";
     }
-    apple(snake) {
-      this.points = 1;
-      snake.grow(this.points);
-      this.gameUI.addLogEvent("Une pomme de plus pour le serpent !");
-      return this.points;
-    }
-    greenApple(snake) {
-      this.gameUI.addLogEvent("Aie, une pomme empoison\xE9e !");
-      this.points = -1;
-      snake.grow(this.points);
-      return this.points;
-    }
-    goldenApple(snake) {
-      console.log("golden apple");
-      this.points = getRandomInt(2, 5);
-      this.gameUI.addLogEvent(
-        "Une super pomme dor\xE9 ! Celle ci vaut " + this.points + " points !"
-      );
-      snake.grow(this.points);
-      return this.points;
-    }
-    speedChange(snake) {
-      let bool = getRandomInt(0, 1);
-      snake.setSpeedModifier(bool ? 50 : -25);
-      let logText = bool ? "vitesse augmente\u0301e" : "vitesse diminue\u0301e";
-      this.gameUI.addLogEvent(logText);
-      return this.points;
-    }
-    getType() {
-      let type = getRandomInt(0, 3);
-      console.log(type);
-      switch (type) {
-        case 0:
-          return "teleport";
-        case 1:
-          return "speed_change";
-        case 2:
-          return "golden_apple";
-        default:
-          return "green_apple";
-      }
-    }
-    setColor() {
-      this.color = this.type === "apple" ? "red" : this.allowedColors[getRandomInt(0, this.allowedColors.length - 1)];
-    }
-    draw(color = "") {
-      this.context.fillStyle = color ? color : this.color;
+    draw(cheatActivated = false) {
+      this.context.fillStyle = this.getColor(cheatActivated);
       this.context.fillRect(
         this.position.x,
         this.position.y,
         this.grid.getSize() - 1,
         this.grid.getSize() - 1
       );
+    }
+  };
+
+  // scripts/Snake/Eatables/Teleport.ts
+  var Teleport = class extends Eatable {
+    defaultColor() {
+      return "purple";
+    }
+    doEffect(snake) {
+      snake.params.cells = [];
+      snake.params.position = this.grid.generateRandomPoint();
+      return 0;
+    }
+    getLogName() {
+      return "snake_teleport";
+    }
+  };
+
+  // scripts/Snake/Eatables/SpeedChange.ts
+  var SpeedChange = class extends Eatable {
+    bool;
+    defaultColor() {
+      return "blue";
+    }
+    doEffect(snake) {
+      this.bool = getRandomInt(0, 1) ? true : false;
+      snake.setSpeedModifier(this.bool ? 50 : -25);
+      return 0;
+    }
+    getLogName() {
+      return this.bool ? "speed_change_up" : "speed_change_down";
+    }
+  };
+
+  // scripts/Snake/Eatables/AppleGolden.ts
+  var AppleGolden = class extends Eatable {
+    defaultColor() {
+      return "gold";
+    }
+    doEffect(snake) {
+      let points = getRandomInt(2, 5);
+      snake.grow(points);
+      return points;
+    }
+    getLogName() {
+      return "apple_golden_eaten";
+    }
+  };
+
+  // scripts/Snake/Eatables/AppleGreen.ts
+  var AppleGreen = class extends Eatable {
+    defaultColor() {
+      return "green";
+    }
+    doEffect(snake) {
+      snake.grow(-1);
+      return -1;
+    }
+    getLogName() {
+      return "apple_green_eaten";
+    }
+  };
+
+  // scripts/Snake/Eatables/Apple.ts
+  var Apple = class extends Eatable {
+    defaultColor() {
+      return "red";
+    }
+    doEffect(snake) {
+      snake.grow(1);
+      return 1;
+    }
+    getLogName() {
+      return "apple_eaten";
+    }
+  };
+
+  // scripts/Snake/EatableFactory.ts
+  var EatableFactory = class {
+    Eatables = { Teleport, SpeedChange, AppleGolden, AppleGreen };
+    context;
+    grid;
+    position = { x: 0, y: 0 };
+    snake;
+    constructor(context, grid, snake) {
+      this.context = context;
+      this.grid = grid;
+      this.snake = snake;
+    }
+    getNewEatable(type, position) {
+      type = type ? type : Object.keys(this.Eatables)[Math.floor(Math.random() * Object.keys(this.Eatables).length)];
+      const Eatable2 = this.getEatable(type);
+      if (position) {
+        Eatable2.setPosition(position);
+      } else {
+        Eatable2.newRandomPosition();
+      }
+      return Eatable2;
+    }
+    getEatable(type) {
+      if (this.Eatables[type]) {
+        return new this.Eatables[type](this.grid, this.context);
+      } else {
+        return new Apple(this.grid, this.context);
+      }
     }
   };
 
@@ -2595,11 +2646,11 @@ ${JSON.stringify(message, null, 4)}`);
         this.move();
       }
     }
-    draw(color = "") {
+    draw() {
       this.params.cells.forEach((cell, index) => {
-        this.context.fillStyle = color ? color : "#0b852b";
+        this.context.fillStyle = "#0b852b";
         if (index === 0) {
-          this.context.fillStyle = color ? color : "#11ba3d";
+          this.context.fillStyle = "#11ba3d";
         }
         this.context.fillRect(
           cell.x,
@@ -2612,16 +2663,8 @@ ${JSON.stringify(message, null, 4)}`);
     move() {
       this.params.position.x += this.params.dirX * this.grid.getSize();
       this.params.position.y += this.params.dirY * this.grid.getSize();
-      if (this.params.position.x < 0) {
-        this.params.position.x = this.canvas.width - this.grid.getSize();
-      } else if (this.params.position.x >= this.canvas.width) {
-        this.params.position.x = 0;
-      }
-      if (this.params.position.y < 0) {
-        this.params.position.y = this.canvas.height - this.grid.getSize();
-      } else if (this.params.position.y >= this.canvas.height) {
-        this.params.position.y = 0;
-      }
+      this.params.position.x = (this.params.position.x + this.canvas.width) % this.canvas.width;
+      this.params.position.y = (this.params.position.y + this.canvas.height) % this.canvas.height;
       this.params.cells.unshift({
         x: this.params.position.x,
         y: this.params.position.y
@@ -2675,6 +2718,7 @@ ${JSON.stringify(message, null, 4)}`);
     rightCmd = ["droite", "right", "fn", "mlp"];
     reverseCmd = ["arriere", "reverse", "rem", "macron"];
     cmdToExecute = [];
+    cheatCommand = ["haut", "gauche", "gauche", "bas", "reverse"];
     aliasToCmd(cmd) {
       if (this.upCmd.includes(cmd)) {
         return "up";
@@ -2724,20 +2768,37 @@ ${JSON.stringify(message, null, 4)}`);
     }
   };
 
+  // scripts/Shared/GameLogger.ts
+  var GameLogger = class {
+    gameUI;
+    logList;
+    constructor(gameUI2, logList) {
+      this.gameUI = gameUI2;
+      this.logList = logList;
+    }
+    addLog(logName) {
+      this.gameUI.addLogEvent(this.logList.getLogText(logName));
+    }
+  };
+
+  // scripts/Snake/GameLogs.ts
+  var GameLogs = class {
+    logs = {
+      game_over: "Le snake s'est mordu lui m\xEAme ! GAME OVER",
+      apple_eaten: "Une pomme de plus pour le serpent !",
+      apple_golden_eaten: "Une pomme d'or ! Le serpent grandit de X",
+      apple_green_eaten: "Oh non ! Une pomme empoison\xE9e ! Le serpent r\xE9tr\xE9cit de 1",
+      speed_change_up: "Le serpent vas plus vite",
+      speed_change_down: "Le serpent ralentit",
+      snake_teleport: "Oh non ! Un t\xE9l\xE9porteur"
+    };
+    getLogText(logName) {
+      return this.logs[logName];
+    }
+  };
+
   // scripts/Snake/Game.ts
   var Game = class {
-    // Typescript fourni des enums si jamais :) https://www.typescriptlang.org/docs/handbook/enums.html#handbook-content
-    allowedColors = [
-      "pink",
-      "orange",
-      "yellow",
-      "purple",
-      "blue",
-      "purple",
-      "green",
-      "brown"
-    ];
-    allowedMessages = ["haut", "bas", "droite", "gauche", "arriere"];
     score = 0;
     highScore = 0;
     snakeParams = {
@@ -2745,31 +2806,22 @@ ${JSON.stringify(message, null, 4)}`);
       dirX: 1,
       dirY: 0,
       cells: [],
-      maxCells: 4
+      maxCells: 5
     };
-    cheatCommand = [
-      "haut",
-      "gauche",
-      "gauche",
-      "bas",
-      "reverse",
-      "droite",
-      "droite",
-      "droite",
-      "reverse"
-    ];
     cheatActivated = false;
     cheatLoopCount = 0;
-    eatables = [];
-    grid;
     canvas;
     context;
-    storage;
-    lastGame;
-    snake;
-    gameUI;
     commandList;
+    storage;
+    gameLogs;
+    lastGame;
+    gameUI;
     timer;
+    grid;
+    snake;
+    eatables = [];
+    EatableFactory;
     constructor(canvas2, gameUI2) {
       this.canvas = canvas2;
       this.gameUI = gameUI2;
@@ -2777,19 +2829,14 @@ ${JSON.stringify(message, null, 4)}`);
       this.storage = new GameStorage(this, "game");
       this.commandList = new CommandList();
       this.lastGame = this.storage.load();
+      this.gameLogs = new GameLogger(this.gameUI, new GameLogs());
       if (this.lastGame.score) {
         this.grid = new Grid(this.lastGame.grid.occupiedCells);
         this.snake = new Snake(canvas2, this.lastGame.snake.params, this.grid);
+        this.EatableFactory = new EatableFactory(this.context, this.grid, this.snake);
         this.lastGame.eatables.forEach((eatable) => {
           this.eatables.push(
-            new Eatable(
-              canvas2,
-              this.grid,
-              this.gameUI,
-              eatable.type,
-              true,
-              eatable.position
-            )
+            this.EatableFactory.getNewEatable(eatable.type, eatable.position)
           );
         });
         this.gameUI.addToHighScore(this.lastGame.highScore);
@@ -2798,8 +2845,11 @@ ${JSON.stringify(message, null, 4)}`);
         this.highScore = this.lastGame.highScore;
       } else {
         this.grid = new Grid();
-        this.eatables.push(new Eatable(canvas2, this.grid, this.gameUI, "apple"));
         this.snake = new Snake(canvas2, this.getParams(), this.grid);
+        this.EatableFactory = new EatableFactory(this.context, this.grid, this.snake);
+        this.eatables.push(
+          this.EatableFactory.getNewEatable("Apple")
+        );
       }
       this.timer = new GameTimer(1e3);
     }
@@ -2812,70 +2862,59 @@ ${JSON.stringify(message, null, 4)}`);
     getAllowedMessages() {
       return this.commandList.getAllowedCmds();
     }
-    getCheatCommand() {
-      return this.cheatCommand;
-    }
     loop() {
       if (this.timer.stopWating(this.getSpeed())) {
-        if (this.commandList.cmdToExecute.length > 0) {
-          this.commandList.cmdToExecute.forEach((cmd) => {
-            this.snake.updateDirection(cmd);
-            this.snake.move();
-          });
-          this.commandList.cmdToExecute = [];
-          this.storage.save(this);
-          this.timer.reset();
-        } else if (this.commandList.cmdToExecute.length == 0) {
+        this.commandList.cmdToExecute.forEach((cmd) => {
+          this.snake.updateDirection(cmd);
           this.snake.move();
+        });
+        if (!this.commandList.cmdToExecute.length)
+          this.snake.move();
+        this.commandList.cmdToExecute = [];
+        this.storage.save(this);
+        this.timer.reset();
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.snake.draw();
+        if (this.cheatLoopCount === 600) {
+          this.cheatActivated = false;
+          this.cheatLoopCount = 0;
+        } else if (this.cheatActivated) {
+          this.cheatLoopCount++;
+        }
+        if (this.score % 2 === 0 && this.eatables.length < Math.ceil(this.score)) {
+          this.eatables.push(
+            this.EatableFactory.getNewEatable()
+          );
           this.storage.save(this);
-          this.timer.reset();
+        }
+        if (this.eatables.length > 0) {
+          this.eatables.forEach((eatable) => {
+            eatable.draw(this.cheatActivated);
+          });
+        }
+        this.manageColision();
+      }
+    }
+    manageColision() {
+      let head = this.snake.params.cells[0];
+      for (let nthBodyPart = 1; nthBodyPart < this.snake.params.cells.length; nthBodyPart++) {
+        if (this.snake.params.cells[nthBodyPart].x == head.x && this.snake.params.cells[nthBodyPart].y == head.y) {
+          this.gameLogs.addLog("game_over");
+          this.reset();
+          return;
         }
       }
-      this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      if (this.cheatLoopCount === 500) {
-        this.cheatActivated = false;
-      }
-      if (this.cheatActivated) {
-        this.cheatLoopCount++;
-        this.snake.draw(
-          this.allowedColors[getRandomInt(0, this.allowedColors.length - 1)]
-        );
-      } else {
-        this.snake.draw();
-      }
-      if (this.score % 2 === 0 && this.eatables.length < Math.ceil(this.score)) {
-        this.eatables.push(new Eatable(this.canvas, this.grid, this.gameUI));
+      console.log(head);
+      let collidedEatable = this.eatables.find((eatable) => {
+        console.log(eatable.position);
+        return head.x == eatable.position.x && head.y == eatable.position.y;
+      });
+      if (collidedEatable) {
+        collidedEatable.newRandomPosition();
+        this.addPoint(collidedEatable.doEffect(this.snake));
+        this.gameLogs.addLog(collidedEatable.getLogName());
         this.storage.save(this);
       }
-      if (this.eatables.length > 0) {
-        this.eatables.forEach((eatable) => {
-          if (this.cheatActivated) {
-            eatable.draw(
-              this.allowedColors[getRandomInt(0, this.allowedColors.length - 1)]
-            );
-          } else {
-            eatable.draw();
-          }
-        });
-      }
-      let snakeCells = this.snake.params.cells;
-      snakeCells.forEach((cell, index) => {
-        for (let i = index + 1; i < snakeCells.length; i++) {
-          this.eatables.forEach((eatable) => {
-            if (cell.x === eatable.position.x && cell.y === eatable.position.y) {
-              eatable.newRandomPosition();
-              this.addPoint(eatable.doEffect(this.snake));
-              this.storage.save(this);
-            }
-          });
-          if (i in snakeCells) {
-            if (cell.x === snakeCells[i].x && cell.y === snakeCells[i].y) {
-              this.gameUI.addLogEvent("Le snake c'est mordu lui m\xEAme !");
-              this.reset();
-            }
-          }
-        }
-      });
     }
     addPoint(point) {
       this.score += point;
@@ -2898,13 +2937,16 @@ ${JSON.stringify(message, null, 4)}`);
     reset() {
       this.grid.clearCells();
       this.snake.params = this.snakeParams;
-      this.eatables = [new Eatable(this.canvas, this.grid, this.gameUI, "apple")];
+      this.eatables = [this.EatableFactory.getNewEatable("Apple")];
       this.score = 0;
       this.gameUI.addToScore(this.score);
       this.storage.clear();
     }
     toggleCheat(bool = false) {
       this.cheatActivated = bool;
+    }
+    getCheatCommand() {
+      return this.commandList.cheatCommand;
     }
   };
 
@@ -2932,7 +2974,6 @@ ${JSON.stringify(message, null, 4)}`);
       return true;
     if (tags["display-name"] === "Moobot")
       return true;
-    const cheatMessages = game.getCheatCommand();
     const msgWrapper = document.querySelector("#chat");
     const msgTemplate = document.querySelector(
       "#chat-msg"
@@ -2946,7 +2987,6 @@ ${JSON.stringify(message, null, 4)}`);
       message.toLowerCase().matchAll(game.getAllowedMessages())
     ).flat();
     if (game.getCheatCommand().every((value, index) => value === messageCmds[index])) {
-      console.log("hello");
       game.toggleCheat(true);
     }
     if (messageCmds.length === 0)

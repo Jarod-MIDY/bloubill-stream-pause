@@ -7,6 +7,8 @@ export class CommandList {
 
   cmdToExecute: string[] = [];
 
+  cheatCommand: string[] = ["haut","gauche","gauche","bas","reverse"];
+
   aliasToCmd(cmd: string): string {
     if (this.upCmd.includes(cmd)) {
       return "up";

@@ -1,27 +1,17 @@
 import { GameInterface } from "../Shared/GameInterface";
 import { GameStorage } from "../Shared/GameStorage";
 import { Grid } from "../Shared/Grid";
-import { Eatable } from "./Eatable";
+import { EatableFactory } from "./EatableFactory";
 import { Snake } from "./Snake";
 import { Params } from "./SnakeParamsType";
-import { getRandomInt } from "../Shared/utils";
 import { GameUI } from "../Shared/GameUI";
 import { CommandList } from "./CommandList";
 import { GameTimer } from "../Shared/GameTimer";
+import { Eatable } from "./Eatable";
+import { GameLogger } from "../Shared/GameLogger";
+import { GameLogs } from "./GameLogs";
 
 export class Game implements GameInterface {
-  // Typescript fourni des enums si jamais :) https://www.typescriptlang.org/docs/handbook/enums.html#handbook-content
-  allowedColors: string[] = [
-    "pink",
-    "orange",
-    "yellow",
-    "purple",
-    "blue",
-    "purple",
-    "green",
-    "brown",
-  ];
-  allowedMessages: string[] = ["haut", "bas", "droite", "gauche", "arriere"];
   score: number = 0;
   highScore: number = 0;
   snakeParams: Params = {
@@ -29,31 +19,23 @@ export class Game implements GameInterface {
     dirX: 1,
     dirY: 0,
     cells: [],
-    maxCells: 4,
+    maxCells: 5,
   };
-  cheatCommand: string[] = [
-    "haut",
-    "gauche",
-    "gauche",
-    "bas",
-    "reverse",
-    "droite",
-    "droite",
-    "droite",
-    "reverse",
-  ];
   cheatActivated: boolean = false;
   cheatLoopCount = 0;
-  eatables: Array<Eatable> = [];
-  grid: Grid;
   canvas: HTMLCanvasElement;
   context: CanvasRenderingContext2D;
-  storage: GameStorage;
-  lastGame: Game;
-  snake: Snake;
-  gameUI: GameUI;
   commandList: CommandList;
+  storage: GameStorage;
+  gameLogs: GameLogger;
+  lastGame: Game;
+  gameUI: GameUI;
   timer: GameTimer;
+  grid: Grid;
+  snake: Snake;
+  eatables: Array<Eatable> = [];
+  EatableFactory: EatableFactory;
+
   constructor(canvas: HTMLCanvasElement, gameUI: GameUI) {
     this.canvas = canvas;
     this.gameUI = gameUI;
@@ -61,20 +43,15 @@ export class Game implements GameInterface {
     this.storage = new GameStorage(this, "game");
     this.commandList = new CommandList();
     this.lastGame = this.storage.load();
+    this.gameLogs = new GameLogger(this.gameUI, new GameLogs())
     if (this.lastGame.score) {
       this.grid = new Grid(this.lastGame.grid.occupiedCells);
       this.snake = new Snake(canvas, this.lastGame.snake.params, this.grid);
+      this.EatableFactory = new EatableFactory(this.context, this.grid, this.snake);
       this.lastGame.eatables.forEach((eatable: Eatable) => {
         this.eatables.push(
-          new Eatable(
-            canvas,
-            this.grid,
-            this.gameUI,
-            eatable.type,
-            true,
-            eatable.position
-          )
-        );
+          this.EatableFactory.getNewEatable(eatable.type, eatable.position)
+          );
       });
       this.gameUI.addToHighScore(this.lastGame.highScore);
       this.gameUI.addToScore(this.lastGame.score);
@@ -82,8 +59,11 @@ export class Game implements GameInterface {
       this.highScore = this.lastGame.highScore;
     } else {
       this.grid = new Grid();
-      this.eatables.push(new Eatable(canvas, this.grid, this.gameUI, "apple"));
       this.snake = new Snake(canvas, this.getParams(), this.grid);
+      this.EatableFactory = new EatableFactory(this.context, this.grid, this.snake);
+      this.eatables.push(
+        this.EatableFactory.getNewEatable("Apple")
+      );
     }
     this.timer = new GameTimer(1000);
   }
@@ -97,79 +77,62 @@ export class Game implements GameInterface {
   getAllowedMessages(): string {
     return this.commandList.getAllowedCmds();
   }
-  getCheatCommand(): string[] {
-    return this.cheatCommand;
-  }
+
   loop() {
     if (this.timer.stopWating(this.getSpeed())) {
-      if (this.commandList.cmdToExecute.length > 0) {
-        this.commandList.cmdToExecute.forEach((cmd) => {
-          this.snake.updateDirection(cmd);
-          this.snake.move();
-        });
-        this.commandList.cmdToExecute = [];
-        this.storage.save(this);
-        this.timer.reset();
-      } else if (this.commandList.cmdToExecute.length == 0) {
+      this.commandList.cmdToExecute.forEach((cmd) => {
+        this.snake.updateDirection(cmd);
         this.snake.move();
-        this.storage.save(this);
-        this.timer.reset();
-      }
-      if (this.cheatActivated) {
-        this.allowedColors[getRandomInt(0, this.allowedColors.length - 1)];
-      }
-    }
-    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    if (this.cheatLoopCount === 600) {
-      this.cheatActivated = false;
-      this.cheatLoopCount = 0;
-    }
-    if (this.cheatActivated) {
-      this.cheatLoopCount++;
-      this.snake.draw(
-        this.allowedColors[getRandomInt(0, this.allowedColors.length - 1)]
-      );
-    } else {
+      });
+      if(!this.commandList.cmdToExecute.length) this.snake.move();
+      this.commandList.cmdToExecute = [];
+      this.storage.save(this);
+      this.timer.reset();
+      this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
       this.snake.draw();
+      // cheats deactivation
+      if (this.cheatLoopCount === 600) {
+        this.cheatActivated = false;
+        this.cheatLoopCount = 0;
+      } else if (this.cheatActivated) {
+        this.cheatLoopCount++
+      }
+      // Create new object
+      if (this.score % 2 === 0 && this.eatables.length < Math.ceil(this.score)) {
+        this.eatables.push(
+          this.EatableFactory.getNewEatable()
+        );
+        this.storage.save(this);
+      }
+      if (this.eatables.length > 0) {
+        this.eatables.forEach((eatable) => {
+          eatable.draw(this.cheatActivated);
+        });
+      }
+      this.manageColision();
     }
-    // Create new object
-    if (this.score % 2 === 0 && this.eatables.length < Math.ceil(this.score)) {
-      this.eatables.push(new Eatable(this.canvas, this.grid, this.gameUI));
+  }
+
+  manageColision() {
+    let head = this.snake.params.cells[0];
+
+    for (let nthBodyPart = 1; nthBodyPart < this.snake.params.cells.length; nthBodyPart++) {
+      if (this.snake.params.cells[nthBodyPart].x == head.x && this.snake.params.cells[nthBodyPart].y == head.y) {
+        this.gameLogs.addLog("game_over")
+        this.reset();
+        return 
+      }
+    }
+    let collidedEatable = this.eatables.find(eatable => { 
+      return head.x == eatable.position.x && head.y == eatable.position.y 
+    })
+    if (collidedEatable) {
+      collidedEatable.newRandomPosition();
+      this.addPoint(collidedEatable.doEffect(this.snake));
+      this.gameLogs.addLog(collidedEatable.getLogName())
       this.storage.save(this);
     }
-    if (this.eatables.length > 0) {
-      this.eatables.forEach((eatable) => {
-        if (this.cheatActivated) {
-          eatable.draw(
-            this.allowedColors[getRandomInt(0, this.allowedColors.length - 1)]
-          );
-        } else {
-          eatable.draw();
-        }
-      });
-    }
-    let snakeCells = this.snake.params.cells;
-    snakeCells.forEach((cell, index) => {
-      // check collision with all cells after this one (modified bubble sort)
-      for (let i = index + 1; i < snakeCells.length; i++) {
-        // snake collides with object
-        this.eatables.forEach((eatable) => {
-          if (cell.x === eatable.position.x && cell.y === eatable.position.y) {
-            eatable.newRandomPosition();
-            this.addPoint(eatable.doEffect(this.snake));
-            this.storage.save(this);
-          }
-        });
-        // snake occupies same space as a body part. reset game
-        if (i in snakeCells) {
-          if (cell.x === snakeCells[i].x && cell.y === snakeCells[i].y) {
-            this.gameUI.addLogEvent("Le snake c'est mordu lui même !");
-            this.reset();
-          }
-        }
-      }
-    });
-  }
+}
 
   addPoint(point: number): void {
     this.score += point;
@@ -194,7 +157,7 @@ export class Game implements GameInterface {
   reset() {
     this.grid.clearCells();
     this.snake.params = this.snakeParams;
-    this.eatables = [new Eatable(this.canvas, this.grid, this.gameUI, "apple")];
+    this.eatables = [this.EatableFactory.getNewEatable("Apple")];
     this.score = 0;
     this.gameUI.addToScore(this.score);
     this.storage.clear();
@@ -202,5 +165,9 @@ export class Game implements GameInterface {
 
   toggleCheat(bool = false) {
     this.cheatActivated = bool;
+  }
+
+  getCheatCommand(): string[] {
+    return this.commandList.cheatCommand;
   }
 }

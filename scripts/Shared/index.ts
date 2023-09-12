@@ -29,7 +29,6 @@ Client.on("message", (channel, tags, message, self) => {
   if (self) return true;
   if (tags["display-name"] === "Moobot") return true;
 
-  const cheatMessages = game.getCheatCommand();
   const msgWrapper: Element = document.querySelector("#chat") as Element;
 
   const msgTemplate: HTMLTemplateElement = document.querySelector(

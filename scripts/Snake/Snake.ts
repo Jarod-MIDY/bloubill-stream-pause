@@ -18,12 +18,12 @@ export class Snake {
     }
   }
 
-  draw(color: string = "") {
+  draw() {
     // draw snake one cell at a time
     this.params.cells.forEach((cell: GridPoint, index: number) => {
-      this.context.fillStyle = color ? color : "#0b852b";
+      this.context.fillStyle = "#0b852b";
       if (index === 0) {
-        this.context.fillStyle = color ? color : "#11ba3d";
+        this.context.fillStyle = "#11ba3d";
       }
       // drawing 1 px smaller than the grid creates a grid effect in the snake body so you can see how long it is
       this.context.fillRect(
@@ -38,18 +38,13 @@ export class Snake {
     // move snake by it's velocity
     this.params.position.x += this.params.dirX * this.grid.getSize();
     this.params.position.y += this.params.dirY * this.grid.getSize();
+
     // wrap snake position horizontally on edge of screen
-    if (this.params.position.x < 0) {
-      this.params.position.x = this.canvas.width - this.grid.getSize();
-    } else if (this.params.position.x >= this.canvas.width) {
-      this.params.position.x = 0;
-    }
+    this.params.position.x = (this.params.position.x + this.canvas.width) % this.canvas.width
+
     // wrap snake position vertically on edge of screen
-    if (this.params.position.y < 0) {
-      this.params.position.y = this.canvas.height - this.grid.getSize();
-    } else if (this.params.position.y >= this.canvas.height) {
-      this.params.position.y = 0;
-    }
+    this.params.position.y = (this.params.position.y + this.canvas.height) % this.canvas.height
+
     // keep track of where snake has been. front of the array is always the head
     this.params.cells.unshift({
       x: this.params.position.x,
