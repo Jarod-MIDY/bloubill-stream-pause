@@ -115,13 +115,12 @@ export class Game implements GameInterface {
 
   manageColision() {
     let head = this.snake.params.cells[0];
-
-    for (let nthBodyPart = 1; nthBodyPart < this.snake.params.cells.length; nthBodyPart++) {
-      if (this.snake.params.cells[nthBodyPart].x == head.x && this.snake.params.cells[nthBodyPart].y == head.y) {
+    if(this.snake.params.cells.filter(bodyPart => {
+        return head.x == bodyPart.x && head.y == bodyPart.y
+      }).length >= 2) {
         this.gameLogs.addLog("game_over")
         this.reset();
         return 
-      }
     }
     let collidedEatable = this.eatables.find(eatable => { 
       return head.x == eatable.position.x && head.y == eatable.position.y 

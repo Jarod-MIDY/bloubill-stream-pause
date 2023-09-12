@@ -2897,16 +2897,14 @@ ${JSON.stringify(message, null, 4)}`);
     }
     manageColision() {
       let head = this.snake.params.cells[0];
-      for (let nthBodyPart = 1; nthBodyPart < this.snake.params.cells.length; nthBodyPart++) {
-        if (this.snake.params.cells[nthBodyPart].x == head.x && this.snake.params.cells[nthBodyPart].y == head.y) {
-          this.gameLogs.addLog("game_over");
-          this.reset();
-          return;
-        }
+      if (this.snake.params.cells.filter((bodyPart) => {
+        return head.x == bodyPart.x && head.y == bodyPart.y;
+      }).length >= 2) {
+        this.gameLogs.addLog("game_over");
+        this.reset();
+        return;
       }
-      console.log(head);
       let collidedEatable = this.eatables.find((eatable) => {
-        console.log(eatable.position);
         return head.x == eatable.position.x && head.y == eatable.position.y;
       });
       if (collidedEatable) {
