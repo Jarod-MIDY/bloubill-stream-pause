@@ -8,13 +8,14 @@ export class Snake {
   grid: Grid;
   params: Params;
 
-  constructor(canvas: HTMLCanvasElement, params: Params, grid: Grid) {
-    this.canvas = canvas;
-    this.context = canvas.getContext("2d") as CanvasRenderingContext2D;
+  constructor(context: CanvasRenderingContext2D, params: Params, grid: Grid) {
+    this.context = context;
     this.grid = grid;
     this.params = params;
-    for (let index = 0; index < params.maxCells; index++) {
-      this.move();
+    if (this.params.cells.length === 0) {
+      for (let index = 0; index < params.maxCells; index++) {
+        this.move();
+      }
     }
   }
 
@@ -27,23 +28,24 @@ export class Snake {
       }
       // drawing 1 px smaller than the grid creates a grid effect in the snake body so you can see how long it is
       this.context.fillRect(
-        cell.x,
-        cell.y,
-        this.grid.getSize() - 1,
-        this.grid.getSize() - 1
+        cell.x * this.grid.getCellWidth(),
+        cell.y * this.grid.getCellWidth(),
+        this.grid.getCellWidth() - 1,
+        this.grid.getCellWidth() - 1
       );
     });
   }
   move() {
+    this.grid.clearCell(this.params.cells[0]);
     // move snake by it's velocity
-    this.params.position.x += this.params.dirX * this.grid.getSize();
-    this.params.position.y += this.params.dirY * this.grid.getSize();
+    this.params.position.x += this.params.dirX;
+    this.params.position.y += this.params.dirY;
 
     // wrap snake position horizontally on edge of screen
-    this.params.position.x = (this.params.position.x + this.canvas.width) % this.canvas.width
+    this.params.position.x = (this.params.position.x + this.grid.getGridSize()) % this.grid.getGridSize()
 
     // wrap snake position vertically on edge of screen
-    this.params.position.y = (this.params.position.y + this.canvas.height) % this.canvas.height
+    this.params.position.y = (this.params.position.y + this.grid.getGridSize()) % this.grid.getGridSize()
 
     // keep track of where snake has been. front of the array is always the head
     this.params.cells.unshift({
@@ -54,6 +56,7 @@ export class Snake {
     if (this.params.cells.length > this.params.maxCells) {
       this.params.cells.pop();
     }
+    this.grid.fillCell(this.params.cells[0]);
   }
   updateDirection(message: string) {
     const allowedDirectionChanges = {

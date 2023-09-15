@@ -23,7 +23,7 @@ export class CommandList {
     }
   }
 
-  saveCmd(cmd: string) {
+  addCmdToExecute(cmd: string) {
     this.cmdToExecute.push(this.aliasToCmd(cmd));
   }
 

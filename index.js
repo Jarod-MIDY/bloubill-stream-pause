@@ -2436,21 +2436,30 @@ ${JSON.stringify(message, null, 4)}`);
 
   // scripts/Shared/Grid.ts
   var Grid = class {
-    size = 32;
+    cellWidth = 32;
+    gridSize = 25;
     occupiedCells = [];
-    constructor(cells = []) {
+    constructor(canvas2, gridSize, cells = []) {
       this.occupiedCells = cells;
+      this.gridSize = gridSize;
+      this.cellWidth = Math.min(canvas2.width, canvas2.height) / this.gridSize;
     }
     fillCell(point) {
       this.occupiedCells.push(point);
+    }
+    clearCell(point) {
+      let pointIndex = this.occupiedCells.indexOf(point);
+      if (pointIndex == -1)
+        return;
+      this.occupiedCells.splice(pointIndex, 1);
     }
     clearCells() {
       this.occupiedCells = [];
     }
     generateRandomPoint() {
       let position = {
-        x: getRandomInt(0, 25) * this.size,
-        y: getRandomInt(0, 25) * this.size
+        x: getRandomInt(0, this.gridSize - 1),
+        y: getRandomInt(0, this.gridSize - 1)
       };
       if (this.occupiedCells.includes(position)) {
         return this.generateRandomPoint();
@@ -2462,8 +2471,11 @@ ${JSON.stringify(message, null, 4)}`);
     getCells() {
       return this.occupiedCells;
     }
-    getSize() {
-      return this.size;
+    getCellWidth() {
+      return this.cellWidth;
+    }
+    getGridSize() {
+      return this.gridSize;
     }
   };
 
@@ -2494,6 +2506,7 @@ ${JSON.stringify(message, null, 4)}`);
       this.color = this.defaultColor();
     }
     newRandomPosition() {
+      this.grid.clearCell(this.position);
       this.position = this.grid.generateRandomPoint();
     }
     setPosition(position) {
@@ -2517,10 +2530,10 @@ ${JSON.stringify(message, null, 4)}`);
     draw(cheatActivated = false) {
       this.context.fillStyle = this.getColor(cheatActivated);
       this.context.fillRect(
-        this.position.x,
-        this.position.y,
-        this.grid.getSize() - 1,
-        this.grid.getSize() - 1
+        this.position.x * this.grid.getCellWidth(),
+        this.position.y * this.grid.getCellWidth(),
+        this.grid.getCellWidth() - 1,
+        this.grid.getCellWidth() - 1
       );
     }
   };
@@ -2637,13 +2650,14 @@ ${JSON.stringify(message, null, 4)}`);
     speedModifier = 0;
     grid;
     params;
-    constructor(canvas2, params, grid) {
-      this.canvas = canvas2;
-      this.context = canvas2.getContext("2d");
+    constructor(context, params, grid) {
+      this.context = context;
       this.grid = grid;
       this.params = params;
-      for (let index = 0; index < params.maxCells; index++) {
-        this.move();
+      if (this.params.cells.length === 0) {
+        for (let index = 0; index < params.maxCells; index++) {
+          this.move();
+        }
       }
     }
     draw() {
@@ -2653,18 +2667,19 @@ ${JSON.stringify(message, null, 4)}`);
           this.context.fillStyle = "#11ba3d";
         }
         this.context.fillRect(
-          cell.x,
-          cell.y,
-          this.grid.getSize() - 1,
-          this.grid.getSize() - 1
+          cell.x * this.grid.getCellWidth(),
+          cell.y * this.grid.getCellWidth(),
+          this.grid.getCellWidth() - 1,
+          this.grid.getCellWidth() - 1
         );
       });
     }
     move() {
-      this.params.position.x += this.params.dirX * this.grid.getSize();
-      this.params.position.y += this.params.dirY * this.grid.getSize();
-      this.params.position.x = (this.params.position.x + this.canvas.width) % this.canvas.width;
-      this.params.position.y = (this.params.position.y + this.canvas.height) % this.canvas.height;
+      this.grid.clearCell(this.params.cells[0]);
+      this.params.position.x += this.params.dirX;
+      this.params.position.y += this.params.dirY;
+      this.params.position.x = (this.params.position.x + this.grid.getGridSize()) % this.grid.getGridSize();
+      this.params.position.y = (this.params.position.y + this.grid.getGridSize()) % this.grid.getGridSize();
       this.params.cells.unshift({
         x: this.params.position.x,
         y: this.params.position.y
@@ -2672,6 +2687,7 @@ ${JSON.stringify(message, null, 4)}`);
       if (this.params.cells.length > this.params.maxCells) {
         this.params.cells.pop();
       }
+      this.grid.fillCell(this.params.cells[0]);
     }
     updateDirection(message) {
       const allowedDirectionChanges = {
@@ -2732,7 +2748,7 @@ ${JSON.stringify(message, null, 4)}`);
         return "reverse";
       }
     }
-    saveCmd(cmd) {
+    addCmdToExecute(cmd) {
       this.cmdToExecute.push(this.aliasToCmd(cmd));
     }
     getCmds() {
@@ -2761,7 +2777,7 @@ ${JSON.stringify(message, null, 4)}`);
       return Date.now() - this.now;
     }
     stopWating(timeOffset = 0) {
-      return this.getTimeElapsed() >= this.waitingTime + timeOffset ? true : false;
+      return this.getTimeElapsed() >= this.waitingTime + timeOffset;
     }
     reset() {
       this.now = Date.now();
@@ -2802,11 +2818,11 @@ ${JSON.stringify(message, null, 4)}`);
     score = 0;
     highScore = 0;
     snakeParams = {
-      position: { x: 160, y: 160 },
+      position: { x: 5, y: 5 },
       dirX: 1,
       dirY: 0,
       cells: [],
-      maxCells: 5
+      maxCells: 4
     };
     cheatActivated = false;
     cheatLoopCount = 0;
@@ -2822,7 +2838,7 @@ ${JSON.stringify(message, null, 4)}`);
     snake;
     eatables = [];
     EatableFactory;
-    constructor(canvas2, gameUI2) {
+    constructor(canvas2, gameUI2, forceReset = false) {
       this.canvas = canvas2;
       this.gameUI = gameUI2;
       this.context = canvas2.getContext("2d");
@@ -2830,31 +2846,28 @@ ${JSON.stringify(message, null, 4)}`);
       this.commandList = new CommandList();
       this.lastGame = this.storage.load();
       this.gameLogs = new GameLogger(this.gameUI, new GameLogs());
-      if (this.lastGame.score) {
-        this.grid = new Grid(this.lastGame.grid.occupiedCells);
-        this.snake = new Snake(canvas2, this.lastGame.snake.params, this.grid);
+      if (forceReset || !this.lastGame.score) {
+        this.grid = new Grid(this.canvas, 25);
+        this.snake = new Snake(this.context, this.getParams(), this.grid);
+        this.EatableFactory = new EatableFactory(this.context, this.grid, this.snake);
+        this.eatables.push(this.EatableFactory.getNewEatable("Apple"));
+      } else {
+        this.grid = new Grid(this.canvas, 25, this.lastGame.grid.occupiedCells);
+        this.snake = new Snake(this.context, this.lastGame.snake.params, this.grid);
+        console.log(this.lastGame.snake.params);
         this.EatableFactory = new EatableFactory(this.context, this.grid, this.snake);
         this.lastGame.eatables.forEach((eatable) => {
-          this.eatables.push(
-            this.EatableFactory.getNewEatable(eatable.type, eatable.position)
-          );
+          this.eatables.push(this.EatableFactory.getNewEatable(eatable.type, eatable.position));
         });
         this.gameUI.addToHighScore(this.lastGame.highScore);
         this.gameUI.addToScore(this.lastGame.score);
         this.score = this.lastGame.score;
         this.highScore = this.lastGame.highScore;
-      } else {
-        this.grid = new Grid();
-        this.snake = new Snake(canvas2, this.getParams(), this.grid);
-        this.EatableFactory = new EatableFactory(this.context, this.grid, this.snake);
-        this.eatables.push(
-          this.EatableFactory.getNewEatable("Apple")
-        );
       }
       this.timer = new GameTimer(1e3);
     }
     readMessage(message) {
-      this.commandList.saveCmd(message);
+      this.commandList.addCmdToExecute(message);
     }
     getSpeed() {
       return this.snake.getSpeed();
@@ -2863,6 +2876,7 @@ ${JSON.stringify(message, null, 4)}`);
       return this.commandList.getAllowedCmds();
     }
     loop() {
+      this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
       if (this.timer.stopWating(this.getSpeed())) {
         this.commandList.cmdToExecute.forEach((cmd) => {
           this.snake.updateDirection(cmd);
@@ -2873,33 +2887,32 @@ ${JSON.stringify(message, null, 4)}`);
         this.commandList.cmdToExecute = [];
         this.storage.save(this);
         this.timer.reset();
-        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.snake.draw();
-        if (this.cheatLoopCount === 600) {
-          this.cheatActivated = false;
-          this.cheatLoopCount = 0;
-        } else if (this.cheatActivated) {
-          this.cheatLoopCount++;
-        }
+        this.manageColision();
         if (this.score % 2 === 0 && this.eatables.length < Math.ceil(this.score)) {
           this.eatables.push(
             this.EatableFactory.getNewEatable()
           );
           this.storage.save(this);
         }
-        if (this.eatables.length > 0) {
-          this.eatables.forEach((eatable) => {
-            eatable.draw(this.cheatActivated);
-          });
-        }
-        this.manageColision();
+      }
+      if (this.cheatLoopCount === 600) {
+        this.cheatActivated = false;
+        this.cheatLoopCount = 0;
+      } else if (this.cheatActivated) {
+        this.cheatLoopCount++;
+      }
+      this.snake.draw();
+      if (this.eatables.length > 0) {
+        this.eatables.forEach((eatable) => {
+          eatable.draw(this.cheatActivated);
+        });
       }
     }
     manageColision() {
       let head = this.snake.params.cells[0];
-      if (this.snake.params.cells.filter((bodyPart) => {
-        return head.x == bodyPart.x && head.y == bodyPart.y;
-      }).length >= 2) {
+      if (this.snake.params.cells.findIndex((bodyPart, i) => {
+        return i != 0 && head.x == bodyPart.x && head.y == bodyPart.y;
+      }) !== -1) {
         this.gameLogs.addLog("game_over");
         this.reset();
         return;
@@ -2949,6 +2962,7 @@ ${JSON.stringify(message, null, 4)}`);
   };
 
   // scripts/Shared/index.ts
+  var urlParams = new URLSearchParams(window.location.search);
   var Client2 = new tmi.Client({
     channels: ["bloubill"]
   });
@@ -2961,7 +2975,7 @@ ${JSON.stringify(message, null, 4)}`);
     document.getElementById("high"),
     document.getElementById("gameLog")
   );
-  var game = new Game(canvas, gameUI);
+  var game = new Game(canvas, gameUI, urlParams.get("reset") === "true");
   function frame() {
     game.loop();
     requestAnimationFrame(frame);

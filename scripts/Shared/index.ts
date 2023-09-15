@@ -1,7 +1,7 @@
 import * as tmi from "tmi.js";
 import { GameUI } from "./GameUI";
 import { Game } from "../Snake/Game";
-
+const urlParams = new URLSearchParams(window.location.search);
 const Client = new tmi.Client({
   channels: ["bloubill"],
 });
@@ -16,7 +16,7 @@ const gameUI = new GameUI(
   document.getElementById("high"),
   document.getElementById("gameLog")
 );
-const game = new Game(canvas, gameUI);
+const game = new Game(canvas, gameUI, urlParams.get("reset") === "true");
 
 function frame() {
   game.loop();

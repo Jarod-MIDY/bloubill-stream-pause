@@ -1,16 +1,26 @@
 import { GridPoint } from "./GridPointType";
 import { getRandomInt } from "./utils";
 export class Grid {
-  size: number = 32;
-
+  cellWidth: number = 32;
+  gridSize: number = 25;
   occupiedCells: GridPoint[] = [];
 
-  constructor(cells: GridPoint[] = []) {
+  constructor(canvas: HTMLCanvasElement, gridSize: number, cells: GridPoint[] = []) {
     this.occupiedCells = cells;
+    this.gridSize = gridSize;
+    this.cellWidth = Math.min(canvas.width, canvas.height)/this.gridSize;
   }
 
   fillCell(point: GridPoint) {
     this.occupiedCells.push(point);
+  }
+
+  clearCell(point: GridPoint) {
+    let pointIndex = this.occupiedCells.indexOf(point);
+    if (pointIndex == -1)
+      return;
+
+    this.occupiedCells.splice(pointIndex, 1);
   }
 
   clearCells() {
@@ -19,8 +29,8 @@ export class Grid {
 
   generateRandomPoint(): GridPoint {
     let position: GridPoint = {
-      x: getRandomInt(0, 25) * this.size,
-      y: getRandomInt(0, 25) * this.size,
+      x: getRandomInt(0, this.gridSize - 1),
+      y: getRandomInt(0, this.gridSize - 1),
     };
     if (this.occupiedCells.includes(position)) {
       return this.generateRandomPoint();
@@ -34,7 +44,10 @@ export class Grid {
     return this.occupiedCells;
   }
 
-  getSize(): number {
-    return this.size;
+  getCellWidth(): number {
+    return this.cellWidth;
+  }
+  getGridSize(): number {
+    return this.gridSize;
   }
 }

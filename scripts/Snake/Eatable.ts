@@ -38,6 +38,7 @@ export class Eatable implements EatablesInterface {
     }
 
     newRandomPosition() {
+        this.grid.clearCell(this.position);
         this.position = this.grid.generateRandomPoint();
     }
 
@@ -48,7 +49,7 @@ export class Eatable implements EatablesInterface {
     defaultColor():string {
         return "gray";
     }
-    
+
     getColor(cheatActivated:boolean):string {
         if (cheatActivated) {
             return this.colors[Math.floor(Math.random()*this.colors.length)]
@@ -68,10 +69,10 @@ export class Eatable implements EatablesInterface {
     draw(cheatActivated = false) {
         this.context.fillStyle = this.getColor(cheatActivated);
         this.context.fillRect(
-        this.position.x,
-        this.position.y,
-        this.grid.getSize() - 1,
-        this.grid.getSize() - 1
+        this.position.x * this.grid.getCellWidth(),
+        this.position.y * this.grid.getCellWidth(),
+        this.grid.getCellWidth() - 1,
+        this.grid.getCellWidth() - 1
         );
     }
 }

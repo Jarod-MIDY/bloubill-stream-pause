@@ -11,9 +11,7 @@ export class GameTimer {
   }
 
   stopWating(timeOffset: number = 0): boolean {
-    return this.getTimeElapsed() >= this.waitingTime + timeOffset
-      ? true
-      : false;
+    return this.getTimeElapsed() >= this.waitingTime + timeOffset;
   }
 
   reset() {
