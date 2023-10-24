@@ -1,14 +1,14 @@
-import { GameInterface } from "../Shared/GameInterface";
-import { GameStorage } from "../Shared/GameStorage";
-import { Grid } from "../Shared/Grid";
+import { GameInterface } from "../Shared/Game/GameInterface";
+import { GameStorage } from "../Shared/Game/GameStorage";
+import { Grid } from "../Shared/Game/Grid";
 import { EatableFactory } from "./EatableFactory";
 import { Snake } from "./Snake";
 import { Params } from "./SnakeParamsType";
-import { GameUI } from "../Shared/GameUI";
+import { GameUI } from "../Shared/Game/GameUI";
 import { CommandList } from "./CommandList";
-import { GameTimer } from "../Shared/GameTimer";
+import { GameTimer } from "../Shared/Game/GameTimer";
 import { Eatable } from "./Eatable";
-import { GameLogger } from "../Shared/GameLogger";
+import { GameLogger } from "../Shared/Game/GameLogger";
 import { GameLogs } from "./GameLogs";
 
 export class Game implements GameInterface {

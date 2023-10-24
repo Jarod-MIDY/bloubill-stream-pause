@@ -1,5 +1,5 @@
-import { Grid } from "../Shared/Grid";
-import { GridPoint } from "../Shared/GridPointType";
+import { Grid } from "../Shared/Game/Grid";
+import { GridPoint } from "../Shared/Game/GridPointType";
 import { Params } from "./SnakeParamsType";
 export class Snake {
   canvas: HTMLCanvasElement;

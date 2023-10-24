@@ -1,4 +1,4 @@
-import { GridPoint } from "../Shared/GridPointType";
+import { GridPoint } from "../Shared/Game/GridPointType";
 export type Params = {
   position: GridPoint;
   dirX: number;

@@ -1,5 +1,5 @@
 import { GridPoint } from "./GridPointType";
-import { getRandomInt } from "./utils";
+import { getRandomInt } from "../utils";
 export class Grid {
   cellWidth: number = 32;
   gridSize: number = 25;
@@ -32,12 +32,16 @@ export class Grid {
       x: getRandomInt(0, this.gridSize - 1),
       y: getRandomInt(0, this.gridSize - 1),
     };
-    if (this.occupiedCells.includes(position)) {
+    if (this.isCellOccupied(position)) {
       return this.generateRandomPoint();
     } else {
       this.fillCell(position);
       return position;
     }
+  }
+
+  isCellOccupied(position: GridPoint): boolean {
+    return this.occupiedCells.some((cell) => cell.x === position.x && cell.y === position.y)
   }
 
   getCells(): GridPoint[] {

@@ -1,5 +1,5 @@
-import { Grid } from "../../Shared/Grid";
-import { GridPoint } from "../../Shared/GridPointType";
+import { Grid } from "../../Shared/Game/Grid";
+import { GridPoint } from "../../Shared/Game/GridPointType";
 import { Snake } from "../Snake";
 
 export interface EatablesInterface {

@@ -2375,7 +2375,7 @@ ${JSON.stringify(message, null, 4)}`);
   // scripts/Shared/index.ts
   var tmi = __toESM(require_tmi());
 
-  // scripts/Shared/GameUI.ts
+  // scripts/Shared/Game/GameUI.ts
   var GameUI = class {
     scoreElement;
     highScoreElement;
@@ -2405,7 +2405,7 @@ ${JSON.stringify(message, null, 4)}`);
     }
   };
 
-  // scripts/Shared/GameStorage.ts
+  // scripts/Shared/Game/GameStorage.ts
   var GameStorage = class {
     localName;
     constructor(game2, localName) {
@@ -2434,7 +2434,7 @@ ${JSON.stringify(message, null, 4)}`);
     return Math.floor(Math.random() * (max - min) + min);
   }
 
-  // scripts/Shared/Grid.ts
+  // scripts/Shared/Game/Grid.ts
   var Grid = class {
     cellWidth = 32;
     gridSize = 25;
@@ -2461,12 +2461,15 @@ ${JSON.stringify(message, null, 4)}`);
         x: getRandomInt(0, this.gridSize - 1),
         y: getRandomInt(0, this.gridSize - 1)
       };
-      if (this.occupiedCells.includes(position)) {
+      if (this.isCellOccupied(position)) {
         return this.generateRandomPoint();
       } else {
         this.fillCell(position);
         return position;
       }
+    }
+    isCellOccupied(position) {
+      return this.occupiedCells.some((cell) => cell.x === position.x && cell.y === position.y);
     }
     getCells() {
       return this.occupiedCells;
@@ -2479,293 +2482,7 @@ ${JSON.stringify(message, null, 4)}`);
     }
   };
 
-  // scripts/Snake/Eatable.ts
-  var Eatable = class {
-    position;
-    grid;
-    context;
-    type = this.constructor.name;
-    color;
-    colors = [
-      "pink",
-      "navy",
-      "deeppink",
-      "orange",
-      "orangered",
-      "chartreuse",
-      "yellow",
-      "purple",
-      "blue",
-      "purple",
-      "green",
-      "brown"
-    ];
-    constructor(grid, context) {
-      this.grid = grid;
-      this.context = context;
-      this.color = this.defaultColor();
-    }
-    newRandomPosition() {
-      this.grid.clearCell(this.position);
-      this.position = this.grid.generateRandomPoint();
-    }
-    setPosition(position) {
-      this.position = position;
-    }
-    defaultColor() {
-      return "gray";
-    }
-    getColor(cheatActivated) {
-      if (cheatActivated) {
-        return this.colors[Math.floor(Math.random() * this.colors.length)];
-      }
-      return this.color;
-    }
-    doEffect(snake) {
-      return 0;
-    }
-    getLogName() {
-      return "eatable_default";
-    }
-    draw(cheatActivated = false) {
-      this.context.fillStyle = this.getColor(cheatActivated);
-      this.context.fillRect(
-        this.position.x * this.grid.getCellWidth(),
-        this.position.y * this.grid.getCellWidth(),
-        this.grid.getCellWidth() - 1,
-        this.grid.getCellWidth() - 1
-      );
-    }
-  };
-
-  // scripts/Snake/Eatables/Teleport.ts
-  var Teleport = class extends Eatable {
-    defaultColor() {
-      return "purple";
-    }
-    doEffect(snake) {
-      snake.params.cells = [];
-      snake.params.position = this.grid.generateRandomPoint();
-      return 0;
-    }
-    getLogName() {
-      return "snake_teleport";
-    }
-  };
-
-  // scripts/Snake/Eatables/SpeedChange.ts
-  var SpeedChange = class extends Eatable {
-    bool;
-    defaultColor() {
-      return "blue";
-    }
-    doEffect(snake) {
-      this.bool = getRandomInt(0, 1) ? true : false;
-      snake.setSpeedModifier(this.bool ? 50 : -25);
-      return 0;
-    }
-    getLogName() {
-      return this.bool ? "speed_change_up" : "speed_change_down";
-    }
-  };
-
-  // scripts/Snake/Eatables/AppleGolden.ts
-  var AppleGolden = class extends Eatable {
-    defaultColor() {
-      return "gold";
-    }
-    doEffect(snake) {
-      let points = getRandomInt(2, 5);
-      snake.grow(points);
-      return points;
-    }
-    getLogName() {
-      return "apple_golden_eaten";
-    }
-  };
-
-  // scripts/Snake/Eatables/AppleGreen.ts
-  var AppleGreen = class extends Eatable {
-    defaultColor() {
-      return "green";
-    }
-    doEffect(snake) {
-      snake.grow(-1);
-      return -1;
-    }
-    getLogName() {
-      return "apple_green_eaten";
-    }
-  };
-
-  // scripts/Snake/Eatables/Apple.ts
-  var Apple = class extends Eatable {
-    defaultColor() {
-      return "red";
-    }
-    doEffect(snake) {
-      snake.grow(1);
-      return 1;
-    }
-    getLogName() {
-      return "apple_eaten";
-    }
-  };
-
-  // scripts/Snake/EatableFactory.ts
-  var EatableFactory = class {
-    Eatables = { Teleport, SpeedChange, AppleGolden, AppleGreen };
-    context;
-    grid;
-    position = { x: 0, y: 0 };
-    snake;
-    constructor(context, grid, snake) {
-      this.context = context;
-      this.grid = grid;
-      this.snake = snake;
-    }
-    getNewEatable(type, position) {
-      type = type ? type : Object.keys(this.Eatables)[Math.floor(Math.random() * Object.keys(this.Eatables).length)];
-      const Eatable2 = this.getEatable(type);
-      if (position) {
-        Eatable2.setPosition(position);
-      } else {
-        Eatable2.newRandomPosition();
-      }
-      return Eatable2;
-    }
-    getEatable(type) {
-      if (this.Eatables[type]) {
-        return new this.Eatables[type](this.grid, this.context);
-      } else {
-        return new Apple(this.grid, this.context);
-      }
-    }
-  };
-
-  // scripts/Snake/Snake.ts
-  var Snake = class {
-    canvas;
-    context;
-    speedModifier = 0;
-    grid;
-    params;
-    constructor(context, params, grid) {
-      this.context = context;
-      this.grid = grid;
-      this.params = params;
-      if (this.params.cells.length === 0) {
-        for (let index = 0; index < params.maxCells; index++) {
-          this.move();
-        }
-      }
-    }
-    draw() {
-      this.params.cells.forEach((cell, index) => {
-        this.context.fillStyle = "#0b852b";
-        if (index === 0) {
-          this.context.fillStyle = "#11ba3d";
-        }
-        this.context.fillRect(
-          cell.x * this.grid.getCellWidth(),
-          cell.y * this.grid.getCellWidth(),
-          this.grid.getCellWidth() - 1,
-          this.grid.getCellWidth() - 1
-        );
-      });
-    }
-    move() {
-      this.grid.clearCell(this.params.cells[0]);
-      this.params.position.x += this.params.dirX;
-      this.params.position.y += this.params.dirY;
-      this.params.position.x = (this.params.position.x + this.grid.getGridSize()) % this.grid.getGridSize();
-      this.params.position.y = (this.params.position.y + this.grid.getGridSize()) % this.grid.getGridSize();
-      this.params.cells.unshift({
-        x: this.params.position.x,
-        y: this.params.position.y
-      });
-      if (this.params.cells.length > this.params.maxCells) {
-        this.params.cells.pop();
-      }
-      this.grid.fillCell(this.params.cells[0]);
-    }
-    updateDirection(message) {
-      const allowedDirectionChanges = {
-        whenVertical: {
-          left: [-1, 0],
-          right: [1, 0],
-          up: [this.params.dirX, this.params.dirY],
-          down: [this.params.dirX, this.params.dirY],
-          reverse: [-this.params.dirX, -this.params.dirY]
-        },
-        whenHorizontal: {
-          left: [this.params.dirX, this.params.dirY],
-          right: [this.params.dirX, this.params.dirY],
-          up: [0, -1],
-          down: [0, 1],
-          reverse: [-this.params.dirX, -this.params.dirY]
-        }
-      };
-      if (message === "reverse") {
-        this.params.cells.reverse();
-        this.params.position.x = this.params.cells[0].x;
-        this.params.position.y = this.params.cells[0].y;
-      }
-      const currentDirection = this.params.dirX === 0 ? "whenVertical" : "whenHorizontal";
-      this.params.dirX = allowedDirectionChanges[currentDirection][message][0];
-      this.params.dirY = allowedDirectionChanges[currentDirection][message][1];
-    }
-    grow(growth) {
-      this.params.maxCells += growth;
-    }
-    getSpeed() {
-      return this.params.maxCells + this.speedModifier;
-    }
-    setSpeedModifier(speed) {
-      this.speedModifier = speed;
-    }
-  };
-
-  // scripts/Snake/CommandList.ts
-  var CommandList = class {
-    upCmd = ["haut", "up", "good", "bon"];
-    downCmd = ["bas", "down", "evil", "mauvais"];
-    leftCmd = ["gauche", "left", "communiste", "jlm"];
-    rightCmd = ["droite", "right", "fn", "mlp"];
-    reverseCmd = ["arriere", "reverse", "rem", "macron"];
-    cmdToExecute = [];
-    cheatCommand = ["haut", "gauche", "gauche", "bas", "reverse"];
-    aliasToCmd(cmd) {
-      if (this.upCmd.includes(cmd)) {
-        return "up";
-      } else if (this.downCmd.includes(cmd)) {
-        return "down";
-      } else if (this.leftCmd.includes(cmd)) {
-        return "left";
-      } else if (this.rightCmd.includes(cmd)) {
-        return "right";
-      } else if (this.reverseCmd.includes(cmd)) {
-        return "reverse";
-      }
-    }
-    addCmdToExecute(cmd) {
-      this.cmdToExecute.push(this.aliasToCmd(cmd));
-    }
-    getCmds() {
-      return this.cmdToExecute;
-    }
-    getAllowedCmds() {
-      return [
-        ...this.upCmd,
-        ...this.downCmd,
-        ...this.leftCmd,
-        ...this.rightCmd,
-        ...this.reverseCmd
-      ].join("|");
-    }
-  };
-
-  // scripts/Shared/GameTimer.ts
+  // scripts/Shared/Game/GameTimer.ts
   var GameTimer = class {
     waitingTime;
     now;
@@ -2784,7 +2501,7 @@ ${JSON.stringify(message, null, 4)}`);
     }
   };
 
-  // scripts/Shared/GameLogger.ts
+  // scripts/Shared/Game/GameLogger.ts
   var GameLogger = class {
     gameUI;
     logList;
@@ -2797,7 +2514,38 @@ ${JSON.stringify(message, null, 4)}`);
     }
   };
 
-  // scripts/Snake/GameLogs.ts
+  // scripts/Power4/CommandList.ts
+  var CommandList = class {
+    placeCmd = ["place"];
+    leftCmd = ["gauche", "left"];
+    rightCmd = ["droite", "right"];
+    cmdToExecute = [];
+    cheatCommand = ["nope"];
+    aliasToCmd(cmd) {
+      if (this.placeCmd.includes(cmd)) {
+        return "place";
+      } else if (this.leftCmd.includes(cmd)) {
+        return "left";
+      } else if (this.rightCmd.includes(cmd)) {
+        return "right";
+      }
+    }
+    addCmdToExecute(cmd) {
+      this.cmdToExecute.push(this.aliasToCmd(cmd));
+    }
+    getCmds() {
+      return this.cmdToExecute;
+    }
+    getAllowedCmds() {
+      return [
+        ...this.placeCmd,
+        ...this.leftCmd,
+        ...this.rightCmd
+      ].join("|");
+    }
+  };
+
+  // scripts/Power4/GameLogs.ts
   var GameLogs = class {
     logs = {
       game_over: "Le snake s'est mordu lui m\xEAme ! GAME OVER",
@@ -2813,31 +2561,93 @@ ${JSON.stringify(message, null, 4)}`);
     }
   };
 
-  // scripts/Snake/Game.ts
+  // scripts/Shared/Team.ts
+  var Team = class {
+    name;
+    color;
+    members;
+    constructor(name, color) {
+      this.name = name;
+      this.color = color;
+    }
+    addMember(member) {
+      this.members.push(member);
+    }
+    removeMember(member) {
+      const index = this.members.indexOf(member);
+      if (index > -1) {
+        this.members.splice(index, 1);
+        return true;
+      }
+      return false;
+    }
+    getMembers() {
+      return this.members;
+    }
+  };
+
+  // scripts/Power4/Coin.ts
+  var Coin = class {
+    position;
+    grid;
+    context;
+    team;
+    constructor(position, grid, context, team) {
+      this.position = position;
+      this.grid = grid;
+      this.team = team;
+      this.context = context;
+      this.grid.fillCell(position);
+    }
+    setPosition(position) {
+      this.grid.clearCell(this.position);
+      this.position = position;
+      this.grid.fillCell(this.position);
+    }
+    getPosition() {
+      return this.position;
+    }
+    move(direction) {
+      if (direction === "right") {
+        this.position.x = (this.position.x + 1) % this.grid.getGridSize();
+      } else if (direction === "left") {
+        this.position.x = (this.grid.getGridSize() + this.position.x - 1) % this.grid.getGridSize();
+      }
+    }
+    draw() {
+      this.context.fillStyle = this.team.color;
+      this.context.beginPath();
+      this.context.arc(
+        (this.position.x + 0.5) * this.grid.getCellWidth(),
+        (this.position.y + 0.5) * this.grid.getCellWidth(),
+        50,
+        0,
+        2 * Math.PI
+      );
+      this.context.fill();
+    }
+  };
+
+  // scripts/Power4/Game.ts
   var Game = class {
     score = 0;
     highScore = 0;
-    snakeParams = {
-      position: { x: 5, y: 5 },
-      dirX: 1,
-      dirY: 0,
-      cells: [],
-      maxCells: 4
-    };
     cheatActivated = false;
     cheatLoopCount = 0;
     canvas;
     context;
-    commandList;
     storage;
     gameLogs;
     lastGame;
     gameUI;
     timer;
     grid;
-    snake;
-    eatables = [];
-    EatableFactory;
+    commandList;
+    power4Params;
+    teams;
+    playingTeam;
+    currentCoin = null;
+    placedCoins = [];
     constructor(canvas2, gameUI2, forceReset = false) {
       this.canvas = canvas2;
       this.gameUI = gameUI2;
@@ -2846,86 +2656,67 @@ ${JSON.stringify(message, null, 4)}`);
       this.commandList = new CommandList();
       this.lastGame = this.storage.load();
       this.gameLogs = new GameLogger(this.gameUI, new GameLogs());
-      if (forceReset || !this.lastGame.score) {
-        this.grid = new Grid(this.canvas, 25);
-        this.snake = new Snake(this.context, this.getParams(), this.grid);
-        this.EatableFactory = new EatableFactory(this.context, this.grid, this.snake);
-        this.eatables.push(this.EatableFactory.getNewEatable("Apple"));
-      } else {
-        this.grid = new Grid(this.canvas, 25, this.lastGame.grid.occupiedCells);
-        this.snake = new Snake(this.context, this.lastGame.snake.params, this.grid);
-        console.log(this.lastGame.snake.params);
-        this.EatableFactory = new EatableFactory(this.context, this.grid, this.snake);
-        this.lastGame.eatables.forEach((eatable) => {
-          this.eatables.push(this.EatableFactory.getNewEatable(eatable.type, eatable.position));
-        });
-        this.gameUI.addToHighScore(this.lastGame.highScore);
-        this.gameUI.addToScore(this.lastGame.score);
-        this.score = this.lastGame.score;
-        this.highScore = this.lastGame.highScore;
-      }
-      this.timer = new GameTimer(1e3);
+      this.grid = new Grid(this.canvas, 7);
+      this.teams = [
+        new Team("YellowTeam", "yellow"),
+        new Team("RedTeam", "red")
+      ];
+      this.playingTeam = this.teams[0];
+      this.timer = new GameTimer(100);
     }
     readMessage(message) {
       this.commandList.addCmdToExecute(message);
     }
     getSpeed() {
-      return this.snake.getSpeed();
+      return 0;
     }
     getAllowedMessages() {
       return this.commandList.getAllowedCmds();
     }
     loop() {
       this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      if (null === this.currentCoin) {
+        this.currentCoin = new Coin({ x: 0, y: 0 }, this.grid, this.context, this.playingTeam);
+      } else {
+        this.currentCoin.draw();
+      }
+      this.placedCoins.forEach((coin) => {
+        coin.draw();
+      });
       if (this.timer.stopWating(this.getSpeed())) {
         this.commandList.cmdToExecute.forEach((cmd) => {
-          this.snake.updateDirection(cmd);
-          this.snake.move();
+          if (this.currentCoin) {
+            if (cmd === "place") {
+              this.place(this.currentCoin.getPosition());
+            } else {
+              console.log(cmd);
+              this.currentCoin.move(cmd);
+            }
+          }
         });
-        if (!this.commandList.cmdToExecute.length)
-          this.snake.move();
         this.commandList.cmdToExecute = [];
         this.storage.save(this);
         this.timer.reset();
-        this.manageColision();
-        if (this.score % 2 === 0 && this.eatables.length < Math.ceil(this.score)) {
-          this.eatables.push(
-            this.EatableFactory.getNewEatable()
-          );
-          this.storage.save(this);
-        }
-      }
-      if (this.cheatLoopCount === 600) {
-        this.cheatActivated = false;
-        this.cheatLoopCount = 0;
-      } else if (this.cheatActivated) {
-        this.cheatLoopCount++;
-      }
-      this.snake.draw();
-      if (this.eatables.length > 0) {
-        this.eatables.forEach((eatable) => {
-          eatable.draw(this.cheatActivated);
-        });
       }
     }
-    manageColision() {
-      let head = this.snake.params.cells[0];
-      if (this.snake.params.cells.findIndex((bodyPart, i) => {
-        return i != 0 && head.x == bodyPart.x && head.y == bodyPart.y;
-      }) !== -1) {
-        this.gameLogs.addLog("game_over");
-        this.reset();
-        return;
+    place(position) {
+      if (!this.grid.isCellOccupied({ x: position.x, y: position.y + 1 })) {
+        for (let index = 6; index > 1; index--) {
+          if (!this.grid.isCellOccupied({ x: position.x, y: index })) {
+            console.log(this.grid.isCellOccupied({ x: position.x, y: index }));
+            this.currentCoin.setPosition({ x: position.x, y: index });
+            break;
+          }
+        }
+        this.placedCoins.push(this.currentCoin);
+        this.currentCoin = null;
+        this.setNextTeam();
+        console.log(this.grid);
       }
-      let collidedEatable = this.eatables.find((eatable) => {
-        return head.x == eatable.position.x && head.y == eatable.position.y;
-      });
-      if (collidedEatable) {
-        collidedEatable.newRandomPosition();
-        this.addPoint(collidedEatable.doEffect(this.snake));
-        this.gameLogs.addLog(collidedEatable.getLogName());
-        this.storage.save(this);
-      }
+    }
+    setNextTeam() {
+      let index = this.teams.indexOf(this.playingTeam);
+      this.playingTeam = this.teams[(index + 1) % this.teams.length];
     }
     addPoint(point) {
       this.score += point;
@@ -2940,15 +2731,13 @@ ${JSON.stringify(message, null, 4)}`);
       }
     }
     getParams() {
-      if (this.lastGame.snakeParams) {
-        return this.lastGame.snakeParams;
+      if (this.lastGame.power4Params) {
+        return this.lastGame.power4Params;
       }
-      return this.snakeParams;
+      return this.power4Params;
     }
     reset() {
       this.grid.clearCells();
-      this.snake.params = this.snakeParams;
-      this.eatables = [this.EatableFactory.getNewEatable("Apple")];
       this.score = 0;
       this.gameUI.addToScore(this.score);
       this.storage.clear();
@@ -2961,8 +2750,61 @@ ${JSON.stringify(message, null, 4)}`);
     }
   };
 
+  // scripts/Shared/Message/MessageUI.ts
+  var MessageUI = class {
+    msgWrapper;
+    msgTemplate;
+    textTemplateSelector;
+    userNameTemplateSelector;
+    constructor(msgWrapperSelector, msgTemplateSelector, textTemplateSelector, userNameTemplateSelector) {
+      this.msgWrapper = document.querySelector(msgWrapperSelector);
+      this.msgTemplate = document.querySelector(msgTemplateSelector);
+      this.textTemplateSelector = textTemplateSelector;
+      this.userNameTemplateSelector = userNameTemplateSelector;
+    }
+    addMessage(message, tags) {
+      const msgClone = this.msgTemplate.content.cloneNode(true);
+      let msgText = msgClone.querySelector(".msg-text");
+      let msgUserName = msgClone.querySelector(".msg-username");
+      if (tags["emotes"]) {
+        msgText.insertAdjacentHTML(
+          "beforeend",
+          this.formatEmotes(message, tags["emotes"])
+        );
+      } else {
+        msgText.textContent = message;
+      }
+      msgUserName.textContent = tags["display-name"];
+      msgUserName.style.color = tags["color"] ? tags["color"] : "#fff";
+      this.msgWrapper.prepend(msgClone);
+    }
+    formatEmotes(text, emotes) {
+      let splitText = text.split("");
+      for (let i in emotes) {
+        let emoteid = emotes[i];
+        for (let j in emoteid) {
+          let emoteName = emoteid[j];
+          let splitedName = emoteName.split("-");
+          let emotePosition = [parseInt(splitedName[0]), parseInt(splitedName[1])];
+          let length = emotePosition[1] - emotePosition[0];
+          let empty = Array.apply(null, new Array(length + 1)).map(function() {
+            return "";
+          });
+          splitText = splitText.slice(0, emotePosition[0]).concat(empty).concat(splitText.slice(emotePosition[1] + 1, splitText.length));
+          splitText.splice(
+            emotePosition[0],
+            1,
+            '<img class="emoticon" src="http://static-cdn.jtvnw.net/emoticons/v1/' + i + '/3.0">'
+          );
+        }
+      }
+      return splitText.join("");
+    }
+  };
+
   // scripts/Shared/index.ts
   var urlParams = new URLSearchParams(window.location.search);
+  var messageUI = new MessageUI("#chat", "#chat-msg", ".msg-text", ".msg-username");
   var Client2 = new tmi.Client({
     channels: ["bloubill"]
   });
@@ -2986,15 +2828,6 @@ ${JSON.stringify(message, null, 4)}`);
       return true;
     if (tags["display-name"] === "Moobot")
       return true;
-    const msgWrapper = document.querySelector("#chat");
-    const msgTemplate = document.querySelector(
-      "#chat-msg"
-    );
-    const msgClone = msgTemplate.content.cloneNode(true);
-    let msgText = msgClone.querySelector(".msg-text");
-    let msgUserName = msgClone.querySelector(
-      ".msg-username"
-    );
     const messageCmds = Array.from(
       message.toLowerCase().matchAll(game.getAllowedMessages())
     ).flat();
@@ -3006,38 +2839,6 @@ ${JSON.stringify(message, null, 4)}`);
     messageCmds.forEach((message2) => {
       game.readMessage(message2);
     });
-    if (tags["emotes"]) {
-      msgText.insertAdjacentHTML(
-        "beforeend",
-        formatEmotes(message, tags["emotes"])
-      );
-    } else {
-      msgText.textContent = message;
-    }
-    msgUserName.textContent = tags["display-name"];
-    msgUserName.style.color = tags["color"] ? tags["color"] : "#fff";
-    msgWrapper.prepend(msgClone);
+    messageUI.addMessage(message, tags);
   });
-  function formatEmotes(text, emotes) {
-    let splitText = text.split("");
-    for (let i in emotes) {
-      let emoteid = emotes[i];
-      for (let j in emoteid) {
-        let emoteName = emoteid[j];
-        let splitedName = emoteName.split("-");
-        let emotePosition = [parseInt(splitedName[0]), parseInt(splitedName[1])];
-        let length = emotePosition[1] - emotePosition[0];
-        let empty = Array.apply(null, new Array(length + 1)).map(function() {
-          return "";
-        });
-        splitText = splitText.slice(0, emotePosition[0]).concat(empty).concat(splitText.slice(emotePosition[1] + 1, splitText.length));
-        splitText.splice(
-          emotePosition[0],
-          1,
-          '<img class="emoticon" src="http://static-cdn.jtvnw.net/emoticons/v1/' + i + '/3.0">'
-        );
-      }
-    }
-    return splitText.join("");
-  }
 })();

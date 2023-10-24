@@ -1,5 +1,5 @@
-import { GridPoint } from "../Shared/GridPointType";
-import { Grid } from "../Shared/Grid";
+import { GridPoint } from "../Shared/Game/GridPointType";
+import { Grid } from "../Shared/Game/Grid";
 import { Snake } from "./Snake";
 import { Teleport } from "./Eatables/Teleport";
 import { SpeedChange } from "./Eatables/SpeedChange";
