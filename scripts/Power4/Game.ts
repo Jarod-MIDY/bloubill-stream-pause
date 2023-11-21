@@ -42,8 +42,8 @@ export class Game implements GameInterface {
         const lastGame = this.storage.load();
         if (!lastGame) {            
             this.teams = [
-                new Team('YellowTeam', 'yellow'),
-                new Team('RedTeam', 'red'),
+                new Team('YellowTeam', '#f38d00'),
+                new Team('RedTeam', '#cb0000'),
             ];
             this.playingTeam = this.teams[0];
         } else {
@@ -62,6 +62,30 @@ export class Game implements GameInterface {
         })
         UIElements.push(wrapper);
         this.gameUI.addToGameUI(UIElements)
+        this.context.fillStyle = 'pink'
+       
+    }
+
+    drawP4Grid() {
+        this.context.fillStyle = '#0000d9';
+        this.context.fillRect(
+            0,
+            1 * this.grid.getCellWidth(),
+            this.grid.getCellWidth() * this.grid.getGridSize(),
+            this.grid.getCellWidth() * this.grid.getGridSize() - 1
+        );
+        for (let i = this.grid.getGridSize() -1; i > 0; i--) {
+            for (let j = 0; j < this.grid.getGridSize(); j++) {
+                this.context.fillStyle = '#bababa';
+                this.context.beginPath();
+                this.context.arc(
+                    (j + 0.5) * this.grid.getCellWidth(), 
+                    (i + 0.5) * this.grid.getCellWidth(), 
+                    50, 0, 2 * Math.PI
+                    );
+                this.context.fill();   
+            }
+        }
     }
 
     readMessage(message: string): void {
@@ -87,7 +111,6 @@ export class Game implements GameInterface {
         if (lastGame.placedCoins.length > 0) {
             lastGame.placedCoins.forEach((coin) => {
                 let team = this.teams.filter((team) => coin.team.name === team.getName())
-                console.log(team);
                 this.placedCoins.push(new Coin(coin.position, this.grid, this.context, team[0]))
             })
         }
@@ -135,6 +158,7 @@ export class Game implements GameInterface {
     loop() {
         // clear frame
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.drawP4Grid()
         if (null === this.currentCoin) {
             this.currentCoin = new Coin({x:0,y:0}, this.grid, this.context, this.playingTeam);
         } else {
@@ -163,8 +187,8 @@ export class Game implements GameInterface {
     }
 
     place(position: GridPoint) {
-        if (!(this.grid.isCellOccupied({x:position.x , y: position.y + 1}))) {
-            for (let index = 6; index > 1; index--) {
+        if (!(this.grid.isCellOccupied({x:position.x , y: position.y + 1})) && position.y + 1 < 7) {
+            for (let index = 6; index > 0; index--) {
                 if (!(this.grid.isCellOccupied({x:position.x, y: index}))) {
                     this.currentCoin.setPosition({x:position.x, y: index})
                     break;
@@ -198,13 +222,6 @@ export class Game implements GameInterface {
         this.gameUI.setHighScore(new UIPoint(winingTeam.name, winingTeam.getPoints()))
     }
 
-    // getParams(): Params {
-    //     if (this.lastGame.power4Params) {
-    //     return this.lastGame.power4Params;
-    //     }
-    //     return this.power4Params;
-    // }
-
     restart(team: Team) {
         this.grid.clearCells();
         this.placedCoins = [];
@@ -215,7 +232,6 @@ export class Game implements GameInterface {
 
     reset() {
         this.grid.clearCells();
-        // this.gameUI.addToScore(this.score);
         this.storage.clear();
     }
 

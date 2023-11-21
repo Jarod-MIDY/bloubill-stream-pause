@@ -2689,8 +2689,8 @@ ${JSON.stringify(message, null, 4)}`);
       const lastGame = this.storage.load();
       if (!lastGame) {
         this.teams = [
-          new Team("YellowTeam", "yellow"),
-          new Team("RedTeam", "red")
+          new Team("YellowTeam", "#f38d00"),
+          new Team("RedTeam", "#cb0000")
         ];
         this.playingTeam = this.teams[0];
       } else {
@@ -2708,6 +2708,7 @@ ${JSON.stringify(message, null, 4)}`);
       });
       UIElements.push(wrapper);
       this.gameUI.addToGameUI(UIElements);
+      this.context.fillStyle = "pink";
     }
     readMessage(message) {
       this.commandList.addCmdToExecute(message);
@@ -2729,7 +2730,6 @@ ${JSON.stringify(message, null, 4)}`);
       if (lastGame.placedCoins.length > 0) {
         lastGame.placedCoins.forEach((coin) => {
           let team = this.teams.filter((team2) => coin.team.name === team2.getName());
-          console.log(team);
           this.placedCoins.push(new Coin(coin.position, this.grid, this.context, team[0]));
         });
       }
@@ -2773,6 +2773,27 @@ ${JSON.stringify(message, null, 4)}`);
     }
     loop() {
       this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      this.context.fillStyle = "#0000d9";
+      this.context.fillRect(
+        0,
+        1 * this.grid.getCellWidth(),
+        this.grid.getCellWidth() * this.grid.getGridSize(),
+        this.grid.getCellWidth() * this.grid.getGridSize() - 1
+      );
+      for (let i = this.grid.getGridSize() - 1; i > 0; i--) {
+        for (let j = 0; j < this.grid.getGridSize(); j++) {
+          this.context.fillStyle = "#bababa";
+          this.context.beginPath();
+          this.context.arc(
+            (j + 0.5) * this.grid.getCellWidth(),
+            (i + 0.5) * this.grid.getCellWidth(),
+            50,
+            0,
+            2 * Math.PI
+          );
+          this.context.fill();
+        }
+      }
       if (null === this.currentCoin) {
         this.currentCoin = new Coin({ x: 0, y: 0 }, this.grid, this.context, this.playingTeam);
       } else {
@@ -2798,8 +2819,8 @@ ${JSON.stringify(message, null, 4)}`);
       }
     }
     place(position) {
-      if (!this.grid.isCellOccupied({ x: position.x, y: position.y + 1 })) {
-        for (let index = 6; index > 1; index--) {
+      if (!this.grid.isCellOccupied({ x: position.x, y: position.y + 1 }) && position.y + 1 < 7) {
+        for (let index = 6; index > 0; index--) {
           if (!this.grid.isCellOccupied({ x: position.x, y: index })) {
             this.currentCoin.setPosition({ x: position.x, y: index });
             break;
@@ -2829,12 +2850,6 @@ ${JSON.stringify(message, null, 4)}`);
       });
       this.gameUI.setHighScore(new UIPoint(winingTeam.name, winingTeam.getPoints()));
     }
-    // getParams(): Params {
-    //     if (this.lastGame.power4Params) {
-    //     return this.lastGame.power4Params;
-    //     }
-    //     return this.power4Params;
-    // }
     restart(team) {
       this.grid.clearCells();
       this.placedCoins = [];
