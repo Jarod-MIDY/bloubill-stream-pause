@@ -1,24 +1,20 @@
+import { HTMLSelectors } from "../Enum/HTMLSelectors";
 import { TwitchMessage } from "./TwitchMessage";
 
 export class MessageUI {
 
-    msgWrapper: Element;
-    msgTemplate: HTMLTemplateElement;
-    textTemplateSelector: string;
-    userNameTemplateSelector: string;
+    chatElement: Element;
+    templateChatMSG: HTMLTemplateElement;
 
-
-    constructor(msgWrapperSelector: string, msgTemplateSelector: string, textTemplateSelector: string, userNameTemplateSelector: string) {
-        this.msgWrapper = document.querySelector(msgWrapperSelector) as Element;
-        this.msgTemplate = document.querySelector(msgTemplateSelector) as HTMLTemplateElement;
-        this.textTemplateSelector = textTemplateSelector ;
-        this.userNameTemplateSelector = userNameTemplateSelector ;
+    constructor() {
+        this.chatElement = document.querySelector(HTMLSelectors.chat) as Element;
+        this.templateChatMSG = document.querySelector(HTMLSelectors.templateChatMSG) as HTMLTemplateElement;
     }
 
     addMessage(message: string, tags) {
-        const msgClone = this.msgTemplate.content.cloneNode(true) as Element;
-        let msgText: HTMLElement = msgClone.querySelector(".msg-text") as HTMLElement;
-        let msgUserName: HTMLElement = msgClone.querySelector(".msg-username") as HTMLElement;
+        const msgClone = this.templateChatMSG.content.cloneNode(true) as Element;
+        let msgText: HTMLElement = msgClone.querySelector(HTMLSelectors.msgText) as HTMLElement;
+        let msgUserName: HTMLElement = msgClone.querySelector(HTMLSelectors.chatUsername) as HTMLElement;
         if (tags["emotes"]) {
             msgText.insertAdjacentHTML(
             "beforeend",
@@ -29,7 +25,7 @@ export class MessageUI {
         }
         msgUserName.textContent = tags["display-name"] as string;
         msgUserName.style.color = tags["color"] ? tags["color"] : "#fff";
-        this.msgWrapper.prepend(msgClone);
+        this.chatElement.prepend(msgClone);
     }
 
     formatEmotes(text: string, emotes?: { [emoteid: string]: string[] } | undefined) {

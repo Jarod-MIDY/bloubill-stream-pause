@@ -10,29 +10,29 @@
   </head>
   <body class="scanlines">
     <div class="text-wrapper">
-      <p class="score-text">
-        SCORE:
-        <span id="score">0</span>
+      <div id="Leaderboard">
+        <!-- Content Added With GameUI Object -->
+      </div>
+      <p id="CMDText" class="info-text">
+          <!-- Content Added With GameUI Object -->
       </p>
-      <p class="score-text">
-        HIGHSCORE:
-        <span id="high">0</span>
-      </p>
-      <p class="info-text">
-        !snake <br />
-        pour savoir comment jouer.
-      </p>
-      <div id="chat" class="message-wrapper"></div>
+      <div id="Chat" class="message-wrapper"></div>
     </div>
     <div class="canvas-wrapper">
       <div class="banner">C'est la Pause ! Je reviens vite !</div>
-      <canvas width="800" height="800" id="game"></canvas>
+      <canvas width="800" height="800" id="GameCanvas"></canvas>
     </div>
     <div class="text-wrapper">
-      <p class="info-text">Liste des <br />evenements recents du jeu.</p>
-      <div id="gameLog" class="message-wrapper"></div>
+      <div id="GameUI">
+          <!-- Content Added With GameUI Object -->
+      </div>
+      <div id="gameLogs" class="message-wrapper">
+        <p class="info-text">Liste des <br />evenements recents du jeu.</p>
+          <!-- Content Added With GameUI Object -->
+      </div>
     </div>
-    <template id="chat-msg">
+    <!-- Templates -->
+    <template id="TemplateChatMSG">
       <div class="message">
         <p class="user-info">
           <span class="msg-username"></span>
@@ -40,7 +40,7 @@
         <p class="msg-text"></p>
       </div>
     </template>
-    <template id="gameLog-msg">
+    <template id="TemplateGameLogMSG">
       <div class="message">
         <p class="msg-text"></p>
       </div>

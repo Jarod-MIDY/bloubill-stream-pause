@@ -1,26 +1,17 @@
 import * as tmi from "tmi.js";
-import { GameUI } from "./Game/GameUI";
-import { Game as SnakeGame } from "../Snake/Game";
-import { Game } from "../Power4/Game";
 import { MessageUI } from "./Message/MessageUI";
+import { RandomGameSelector } from "./RandomGameSelector";
 
 const urlParams = new URLSearchParams(window.location.search);
-const messageUI = new MessageUI("#chat", "#chat-msg", ".msg-text", ".msg-username"); 
+const messageUI = new MessageUI(); 
 const Client = new tmi.Client({
   channels: ["bloubill"],
 });
 
 Client.connect();
 
-let canvas: HTMLCanvasElement = document.getElementById(
-  "game"
-) as HTMLCanvasElement;
-const gameUI = new GameUI(
-  document.getElementById("score"),
-  document.getElementById("high"),
-  document.getElementById("gameLog")
-);
-const game = new Game(canvas, gameUI, urlParams.get("reset") === "true");
+let gameSelector = new RandomGameSelector(urlParams)
+const game = gameSelector.getCurrentGame();
 
 function frame() {
   game.loop();

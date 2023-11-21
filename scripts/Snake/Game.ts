@@ -4,7 +4,7 @@ import { Grid } from "../Shared/Game/Grid";
 import { EatableFactory } from "./EatableFactory";
 import { Snake } from "./Snake";
 import { Params } from "./SnakeParamsType";
-import { GameUI } from "../Shared/Game/GameUI";
+import { GameUI } from "../Shared/UI/GameUI";
 import { CommandList } from "./CommandList";
 import { GameTimer } from "../Shared/Game/GameTimer";
 import { Eatable } from "./Eatable";
@@ -39,6 +39,7 @@ export class Game implements GameInterface {
   constructor(canvas: HTMLCanvasElement, gameUI: GameUI, forceReset: boolean = false) {
     this.canvas = canvas;
     this.gameUI = gameUI;
+    this.setUI();
     this.context = canvas.getContext("2d") as CanvasRenderingContext2D;
     this.storage = new GameStorage(this, "game");
     this.commandList = new CommandList();
@@ -57,8 +58,8 @@ export class Game implements GameInterface {
       this.lastGame.eatables.forEach((eatable: Eatable) => {
         this.eatables.push(this.EatableFactory.getNewEatable(eatable.type, eatable.position));
       });
-      this.gameUI.addToHighScore(this.lastGame.highScore);
-      this.gameUI.addToScore(this.lastGame.score);
+      this.gameUI.setHighScore(this.lastGame.highScore);
+      this.gameUI.setScore(this.lastGame.score);
       this.score = this.lastGame.score;
       this.highScore = this.lastGame.highScore;
 
@@ -78,6 +79,10 @@ export class Game implements GameInterface {
     return this.commandList.getAllowedCmds();
   }
   
+  setUI() {
+    this.gameUI.createLeaderboard();
+  }
+
   loop() {
     // clear frame
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -139,10 +144,10 @@ export class Game implements GameInterface {
 
   addPoint(point: number): void {
     this.score += point;
-    this.gameUI.addToScore(this.score);
+    this.gameUI.setScore(this.score);
     if (this.score > this.highScore) {
       this.highScore = this.score;
-      this.gameUI.addToHighScore(this.highScore);
+      this.gameUI.setHighScore(this.highScore);
       this.storage.save(this);
     }
     if (this.score < 0) {
@@ -162,7 +167,7 @@ export class Game implements GameInterface {
     this.snake.params = this.snakeParams;
     this.eatables = [this.EatableFactory.getNewEatable("Apple")];
     this.score = 0;
-    this.gameUI.addToScore(this.score);
+    this.gameUI.setScore(this.score);
     this.storage.clear();
   }
 

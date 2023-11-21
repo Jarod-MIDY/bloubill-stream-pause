@@ -2375,57 +2375,51 @@ ${JSON.stringify(message, null, 4)}`);
   // scripts/Shared/index.ts
   var tmi = __toESM(require_tmi());
 
-  // scripts/Shared/Game/GameUI.ts
-  var GameUI = class {
-    scoreElement;
-    highScoreElement;
-    gameLogElement;
-    constructor(scoreElement, highScoreElement, gameLogElement) {
-      this.scoreElement = scoreElement;
-      this.highScoreElement = highScoreElement;
-      this.gameLogElement = gameLogElement;
+  // scripts/Shared/Message/MessageUI.ts
+  var MessageUI = class {
+    chatElement;
+    templateChatMSG;
+    constructor() {
+      this.chatElement = document.querySelector("#Chat" /* chat */);
+      this.templateChatMSG = document.querySelector("#TemplateChatMSG" /* templateChatMSG */);
     }
-    addToScore(point) {
-      this.scoreElement.innerHTML = point.toString();
-    }
-    addToHighScore(point) {
-      this.highScoreElement.innerHTML = point.toString();
-    }
-    addLogEvent(message) {
-      const logWrapper = document.querySelector("#gameLog");
-      const gameLogMessageTemplate = document.querySelector(
-        "#gameLog-msg"
-      );
-      const logClone = gameLogMessageTemplate.content.cloneNode(true);
-      let msgText = logClone.querySelector(
-        ".msg-text"
-      );
-      msgText.textContent = message;
-      logWrapper.prepend(logClone);
-    }
-  };
-
-  // scripts/Shared/Game/GameStorage.ts
-  var GameStorage = class {
-    localName;
-    constructor(game2, localName) {
-      this.localName = localName;
-      if (!this.load()) {
-        this.save(game2);
+    addMessage(message, tags) {
+      const msgClone = this.templateChatMSG.content.cloneNode(true);
+      let msgText = msgClone.querySelector(".msg-text" /* msgText */);
+      let msgUserName = msgClone.querySelector(".msg-username" /* chatUsername */);
+      if (tags["emotes"]) {
+        msgText.insertAdjacentHTML(
+          "beforeend",
+          this.formatEmotes(message, tags["emotes"])
+        );
+      } else {
+        msgText.textContent = message;
       }
+      msgUserName.textContent = tags["display-name"];
+      msgUserName.style.color = tags["color"] ? tags["color"] : "#fff";
+      this.chatElement.prepend(msgClone);
     }
-    load() {
-      let storage = localStorage.getItem(this.localName);
-      if (storage) {
-        return JSON.parse(storage);
+    formatEmotes(text, emotes) {
+      let splitText = text.split("");
+      for (let i in emotes) {
+        let emoteid = emotes[i];
+        for (let j in emoteid) {
+          let emoteName = emoteid[j];
+          let splitedName = emoteName.split("-");
+          let emotePosition = [parseInt(splitedName[0]), parseInt(splitedName[1])];
+          let length = emotePosition[1] - emotePosition[0];
+          let empty = Array.apply(null, new Array(length + 1)).map(function() {
+            return "";
+          });
+          splitText = splitText.slice(0, emotePosition[0]).concat(empty).concat(splitText.slice(emotePosition[1] + 1, splitText.length));
+          splitText.splice(
+            emotePosition[0],
+            1,
+            '<img class="emoticon" src="http://static-cdn.jtvnw.net/emoticons/v1/' + i + '/3.0">'
+          );
+        }
       }
-      return null;
-    }
-    save(game2) {
-      localStorage.setItem(this.localName, JSON.stringify(game2));
-    }
-    clear() {
-      localStorage.removeItem(this.localName);
+      return splitText.join("");
     }
   };
 
@@ -2439,10 +2433,10 @@ ${JSON.stringify(message, null, 4)}`);
     cellWidth = 32;
     gridSize = 25;
     occupiedCells = [];
-    constructor(canvas2, gridSize, cells = []) {
+    constructor(canvas, gridSize, cells = []) {
       this.occupiedCells = cells;
       this.gridSize = gridSize;
-      this.cellWidth = Math.min(canvas2.width, canvas2.height) / this.gridSize;
+      this.cellWidth = Math.min(canvas.width, canvas.height) / this.gridSize;
     }
     fillCell(point) {
       this.occupiedCells.push(point);
@@ -2505,8 +2499,8 @@ ${JSON.stringify(message, null, 4)}`);
   var GameLogger = class {
     gameUI;
     logList;
-    constructor(gameUI2, logList) {
-      this.gameUI = gameUI2;
+    constructor(gameUI, logList) {
+      this.gameUI = gameUI;
       this.logList = logList;
     }
     addLog(logName) {
@@ -2566,9 +2560,23 @@ ${JSON.stringify(message, null, 4)}`);
     name;
     color;
     members;
-    constructor(name, color) {
+    points;
+    constructor(name, color, points = 0) {
       this.name = name;
       this.color = color;
+      this.points = points;
+    }
+    getName() {
+      return this.name;
+    }
+    addPoint(point) {
+      this.points += point;
+    }
+    getPoints() {
+      return this.points;
+    }
+    resetPoints() {
+      this.points = 0;
     }
     addMember(member) {
       this.members.push(member);
@@ -2628,41 +2636,78 @@ ${JSON.stringify(message, null, 4)}`);
     }
   };
 
+  // scripts/Shared/UI/UIPoint.ts
+  var UIPoint = class {
+    pointOwner;
+    point;
+    constructor(pointOwner, point) {
+      this.pointOwner = pointOwner;
+      this.point = point;
+    }
+    toString() {
+      return this.pointOwner + " : " + this.point.toString();
+    }
+  };
+
+  // scripts/Shared/Game/GameSave.ts
+  var GameSave = class {
+    savedAt;
+    type;
+    game;
+    constructor(type, game2) {
+      this.savedAt = Date.now();
+      this.type = type;
+      this.game = game2;
+    }
+  };
+
   // scripts/Power4/Game.ts
   var Game = class {
-    score = 0;
-    highScore = 0;
     cheatActivated = false;
     cheatLoopCount = 0;
     canvas;
     context;
     storage;
     gameLogs;
-    lastGame;
     gameUI;
     timer;
     grid;
     commandList;
     power4Params;
-    teams;
+    teams = [];
     playingTeam;
     currentCoin = null;
     placedCoins = [];
-    constructor(canvas2, gameUI2, forceReset = false) {
-      this.canvas = canvas2;
-      this.gameUI = gameUI2;
-      this.context = canvas2.getContext("2d");
-      this.storage = new GameStorage(this, "game");
-      this.commandList = new CommandList();
-      this.lastGame = this.storage.load();
-      this.gameLogs = new GameLogger(this.gameUI, new GameLogs());
+    constructor(canvas, gameUI, storage, forceReset = false) {
+      this.canvas = canvas;
+      this.gameUI = gameUI;
+      this.context = canvas.getContext("2d");
+      this.storage = storage;
       this.grid = new Grid(this.canvas, 7);
-      this.teams = [
-        new Team("YellowTeam", "yellow"),
-        new Team("RedTeam", "red")
-      ];
-      this.playingTeam = this.teams[0];
+      this.commandList = new CommandList();
+      this.gameLogs = new GameLogger(this.gameUI, new GameLogs());
+      const lastGame = this.storage.load();
+      if (!lastGame) {
+        this.teams = [
+          new Team("YellowTeam", "yellow"),
+          new Team("RedTeam", "red")
+        ];
+        this.playingTeam = this.teams[0];
+      } else {
+        this.loadLastGame(lastGame.game);
+      }
       this.timer = new GameTimer(100);
+      this.setUI();
+    }
+    setUI() {
+      let UIElements = [];
+      let wrapper = document.createElement("div");
+      this.gameUI.createLeaderboard(true);
+      this.teams.forEach((team) => {
+        wrapper.appendChild(this.gameUI.newScoreElement("Score : " + team.name + " - ", team.name));
+      });
+      UIElements.push(wrapper);
+      this.gameUI.addToGameUI(UIElements);
     }
     readMessage(message) {
       this.commandList.addCmdToExecute(message);
@@ -2672,6 +2717,59 @@ ${JSON.stringify(message, null, 4)}`);
     }
     getAllowedMessages() {
       return this.commandList.getAllowedCmds();
+    }
+    loadLastGame(lastGame) {
+      lastGame.teams.forEach((team) => {
+        let loadedTeam = new Team(team.name, team.color, team.points);
+        this.teams.push(loadedTeam);
+        if (team.name === lastGame.playingTeam.name) {
+          this.playingTeam = loadedTeam;
+        }
+      });
+      if (lastGame.placedCoins.length > 0) {
+        lastGame.placedCoins.forEach((coin) => {
+          let team = this.teams.filter((team2) => coin.team.name === team2.getName());
+          console.log(team);
+          this.placedCoins.push(new Coin(coin.position, this.grid, this.context, team[0]));
+        });
+      }
+    }
+    // vérifie si 4 pieces sont alignées et de la même team (ligne, colonne ou diagonale)
+    checkWinner() {
+      const directions = [
+        { x: 0, y: -1 },
+        // haut
+        { x: 1, y: -1 },
+        // haut droite
+        { x: 1, y: 0 },
+        // droite
+        { x: 1, y: 1 }
+        // bas droite
+      ];
+      let win = false;
+      let winnerTeam = null;
+      this.placedCoins.forEach((coin) => {
+        if (!win) {
+          directions.forEach((dir) => {
+            let nbCorrects = 1;
+            let currentPos = {
+              x: coin.position.x + dir.x,
+              y: coin.position.y + dir.y
+            };
+            while (nbCorrects <= 4 && this.placedCoins.some((c) => c.position.x == currentPos.x && c.position.y == currentPos.y && c.team == coin.team)) {
+              nbCorrects++;
+              currentPos.x += dir.x;
+              currentPos.y += dir.y;
+            }
+            if (nbCorrects >= 4) {
+              win = true;
+              winnerTeam = coin.team;
+              return;
+            }
+          });
+        }
+      });
+      return winnerTeam;
     }
     loop() {
       this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -2688,14 +2786,14 @@ ${JSON.stringify(message, null, 4)}`);
           if (this.currentCoin) {
             if (cmd === "place") {
               this.place(this.currentCoin.getPosition());
+              this.addPoint(this.checkWinner());
             } else {
-              console.log(cmd);
               this.currentCoin.move(cmd);
             }
           }
         });
         this.commandList.cmdToExecute = [];
-        this.storage.save(this);
+        this.storage.save(new GameSave("P4Game", this));
         this.timer.reset();
       }
     }
@@ -2703,7 +2801,6 @@ ${JSON.stringify(message, null, 4)}`);
       if (!this.grid.isCellOccupied({ x: position.x, y: position.y + 1 })) {
         for (let index = 6; index > 1; index--) {
           if (!this.grid.isCellOccupied({ x: position.x, y: index })) {
-            console.log(this.grid.isCellOccupied({ x: position.x, y: index }));
             this.currentCoin.setPosition({ x: position.x, y: index });
             break;
           }
@@ -2711,35 +2808,42 @@ ${JSON.stringify(message, null, 4)}`);
         this.placedCoins.push(this.currentCoin);
         this.currentCoin = null;
         this.setNextTeam();
-        console.log(this.grid);
       }
     }
     setNextTeam() {
       let index = this.teams.indexOf(this.playingTeam);
       this.playingTeam = this.teams[(index + 1) % this.teams.length];
     }
-    addPoint(point) {
-      this.score += point;
-      this.gameUI.addToScore(this.score);
-      if (this.score > this.highScore) {
-        this.highScore = this.score;
-        this.gameUI.addToHighScore(this.highScore);
-        this.storage.save(this);
+    addPoint(team) {
+      if (team === null) {
+        return;
       }
-      if (this.score < 0) {
-        this.reset();
-      }
+      team.addPoint(1);
+      this.gameUI.setScore(team.getPoints(), team.name);
+      this.setHighScore();
+      this.restart(team);
     }
-    getParams() {
-      if (this.lastGame.power4Params) {
-        return this.lastGame.power4Params;
+    setHighScore() {
+      const winingTeam = this.teams.reduce(function(prev, current) {
+        return prev && prev.getPoints() > current.getPoints() ? prev : current;
+      });
+      this.gameUI.setHighScore(new UIPoint(winingTeam.name, winingTeam.getPoints()));
+    }
+    // getParams(): Params {
+    //     if (this.lastGame.power4Params) {
+    //     return this.lastGame.power4Params;
+    //     }
+    //     return this.power4Params;
+    // }
+    restart(team) {
+      this.grid.clearCells();
+      this.placedCoins = [];
+      if (team === this.playingTeam) {
+        this.setNextTeam();
       }
-      return this.power4Params;
     }
     reset() {
       this.grid.clearCells();
-      this.score = 0;
-      this.gameUI.addToScore(this.score);
       this.storage.clear();
     }
     toggleCheat(bool = false) {
@@ -2750,74 +2854,134 @@ ${JSON.stringify(message, null, 4)}`);
     }
   };
 
-  // scripts/Shared/Message/MessageUI.ts
-  var MessageUI = class {
-    msgWrapper;
-    msgTemplate;
-    textTemplateSelector;
-    userNameTemplateSelector;
-    constructor(msgWrapperSelector, msgTemplateSelector, textTemplateSelector, userNameTemplateSelector) {
-      this.msgWrapper = document.querySelector(msgWrapperSelector);
-      this.msgTemplate = document.querySelector(msgTemplateSelector);
-      this.textTemplateSelector = textTemplateSelector;
-      this.userNameTemplateSelector = userNameTemplateSelector;
+  // scripts/Shared/UI/GameUI.ts
+  var GameUI = class {
+    scoreElements = [];
+    highScoreElement;
+    gameLogsElement;
+    leaderboardElement;
+    cmdTextElement;
+    gameUIElement;
+    constructor() {
+      this.leaderboardElement = document.querySelector("#Leaderboard" /* leaderboard */);
+      this.cmdTextElement = document.querySelector("#CMDText" /* cmdText */);
+      this.gameLogsElement = document.querySelector("#gameLogs" /* gameLogs */);
+      this.gameUIElement = document.querySelector("#GameUI" /* gameUI */);
     }
-    addMessage(message, tags) {
-      const msgClone = this.msgTemplate.content.cloneNode(true);
-      let msgText = msgClone.querySelector(".msg-text");
-      let msgUserName = msgClone.querySelector(".msg-username");
-      if (tags["emotes"]) {
-        msgText.insertAdjacentHTML(
-          "beforeend",
-          this.formatEmotes(message, tags["emotes"])
-        );
+    createLeaderboard(customLeaderboard = false) {
+      this.highScoreElement = this.newScoreElement("Highscore : ", "", true);
+      this.leaderboardElement.appendChild(this.highScoreElement);
+      if (!customLeaderboard) {
+        this.newScoreElement("Score  : ", 0);
+        this.leaderboardElement.appendChild(this.scoreElements[0]);
+      }
+    }
+    setScore(point, index) {
+      index = index ?? 0;
+      this.scoreElements[index].querySelector("span").innerHTML = point.toString();
+    }
+    setHighScore(point) {
+      this.highScoreElement.querySelector("span").innerHTML = point.toString();
+    }
+    newScoreElement(text, index, isHighScore = false) {
+      let element = document.createElement("p");
+      element.classList.add("score-text");
+      element.innerHTML = text;
+      let child = document.createElement("span");
+      child.innerHTML = "0";
+      element.appendChild(child);
+      if (!isHighScore) {
+        this.scoreElements[index] = element;
+      }
+      return element;
+    }
+    addToLeaderboard(elements) {
+      elements.forEach((element) => {
+        this.leaderboardElement.appendChild(element);
+      });
+    }
+    addToGameUI(elements) {
+      elements.forEach((element) => {
+        this.gameUIElement.appendChild(element);
+      });
+    }
+    addLogEvent(message) {
+      const gameLogMessageTemplate = document.querySelector(
+        "#TemplateGameLogMSG" /* templateGameLogsMSG */
+      );
+      const logClone = gameLogMessageTemplate.content.cloneNode(true);
+      let msgText = logClone.querySelector(
+        ".msg-text" /* msgText */
+      );
+      msgText.textContent = message;
+      this.gameLogsElement.prepend(logClone);
+    }
+  };
+
+  // scripts/Shared/Game/GameStorage.ts
+  var GameStorage = class {
+    localName;
+    constructor(localName) {
+      this.localName = localName;
+    }
+    load() {
+      let storage = localStorage.getItem(this.localName);
+      if (storage) {
+        return JSON.parse(storage);
+      }
+      return null;
+    }
+    save(save) {
+      localStorage.setItem(this.localName, JSON.stringify(save));
+    }
+    clear() {
+      localStorage.removeItem(this.localName);
+    }
+  };
+
+  // scripts/Shared/RandomGameSelector.ts
+  var RandomGameSelector = class {
+    allowedGames = { P4Game: Game };
+    currentGame;
+    canvas;
+    urlParams;
+    gameUI;
+    gameStorage;
+    gameType;
+    constructor(urlParams2, createNewGame = false) {
+      this.canvas = document.querySelector("#GameCanvas" /* canvas */);
+      this.gameStorage = new GameStorage("game");
+      this.gameUI = new GameUI();
+      this.urlParams = urlParams2;
+      this.currentGame = createNewGame ? this.selectNewGame() : this.loadGame();
+      this.gameStorage.save(new GameSave(this.gameType, this.currentGame));
+    }
+    getCurrentGame() {
+      return this.currentGame;
+    }
+    loadGame() {
+      let loadedGame = this.gameStorage.load();
+      if (!loadedGame || !loadedGame.type) {
+        return this.selectNewGame();
       } else {
-        msgText.textContent = message;
+        return new this.allowedGames[loadedGame.type](this.canvas, this.gameUI, this.gameStorage);
       }
-      msgUserName.textContent = tags["display-name"];
-      msgUserName.style.color = tags["color"] ? tags["color"] : "#fff";
-      this.msgWrapper.prepend(msgClone);
     }
-    formatEmotes(text, emotes) {
-      let splitText = text.split("");
-      for (let i in emotes) {
-        let emoteid = emotes[i];
-        for (let j in emoteid) {
-          let emoteName = emoteid[j];
-          let splitedName = emoteName.split("-");
-          let emotePosition = [parseInt(splitedName[0]), parseInt(splitedName[1])];
-          let length = emotePosition[1] - emotePosition[0];
-          let empty = Array.apply(null, new Array(length + 1)).map(function() {
-            return "";
-          });
-          splitText = splitText.slice(0, emotePosition[0]).concat(empty).concat(splitText.slice(emotePosition[1] + 1, splitText.length));
-          splitText.splice(
-            emotePosition[0],
-            1,
-            '<img class="emoticon" src="http://static-cdn.jtvnw.net/emoticons/v1/' + i + '/3.0">'
-          );
-        }
-      }
-      return splitText.join("");
+    selectNewGame() {
+      var selectedGame = Object.keys(this.allowedGames)[Math.floor(Math.random() * Object.keys(this.allowedGames).length)];
+      return new this.allowedGames[selectedGame](this.canvas, this.gameUI, this.gameStorage);
     }
   };
 
   // scripts/Shared/index.ts
   var urlParams = new URLSearchParams(window.location.search);
-  var messageUI = new MessageUI("#chat", "#chat-msg", ".msg-text", ".msg-username");
+  var messageUI = new MessageUI();
   var Client2 = new tmi.Client({
     channels: ["bloubill"]
   });
   Client2.connect();
-  var canvas = document.getElementById(
-    "game"
-  );
-  var gameUI = new GameUI(
-    document.getElementById("score"),
-    document.getElementById("high"),
-    document.getElementById("gameLog")
-  );
-  var game = new Game(canvas, gameUI, urlParams.get("reset") === "true");
+  var gameSelector = new RandomGameSelector(urlParams);
+  var game = gameSelector.getCurrentGame();
   function frame() {
     game.loop();
     requestAnimationFrame(frame);

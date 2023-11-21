@@ -1,13 +1,12 @@
-import { GameInterface } from "./GameInterface";
+import { GameSave } from "./GameSave";
 
 export class GameStorage {
   localName: string;
-  constructor(game: GameInterface, localName: string) {
+
+  constructor(localName: string) {
     this.localName = localName;
-    if (!this.load()) {
-      this.save(game);
-    }
   }
+
   load() {
     let storage = localStorage.getItem(this.localName);
     if (storage) {
@@ -16,8 +15,8 @@ export class GameStorage {
     return null;
   }
 
-  save(game: GameInterface) {
-    localStorage.setItem(this.localName, JSON.stringify(game));
+  save(save: GameSave) {
+    localStorage.setItem(this.localName, JSON.stringify(save));
   }
 
   clear() {

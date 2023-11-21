@@ -9,5 +9,9 @@ export interface GameInterface {
 
   getSpeed(): number;
 
+  setUI(): void;
+
+  loop(): void;
+
   reset(): void;
 }

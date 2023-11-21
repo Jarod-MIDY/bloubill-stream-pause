@@ -2,10 +2,28 @@ export class Team {
     name: string;
     color: string;
     members: string[];
+    points: number;
 
-    constructor(name: string, color: string) {
+    constructor(name: string, color: string, points: number = 0) {
         this.name = name;
         this.color = color;
+        this.points = points;
+    }
+
+    getName() {
+        return this.name
+    }
+
+    addPoint(point: number) {
+        this.points += point;
+    }
+
+    getPoints() {
+        return this.points;
+    }
+
+    resetPoints() {
+        this.points = 0;
     }
 
     addMember(member : string) {

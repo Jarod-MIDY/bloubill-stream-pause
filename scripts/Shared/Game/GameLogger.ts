@@ -1,5 +1,5 @@
 import { GameLoggInterface } from "./GameLoggInterface";
-import { GameUI } from "./GameUI";
+import { GameUI } from "../UI/GameUI";
 
 export class GameLogger {
 

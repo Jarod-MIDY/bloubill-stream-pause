@@ -1,7 +1,7 @@
 import { GameInterface } from "../Shared/Game/GameInterface";
 import { GameStorage } from "../Shared/Game/GameStorage";
 import { Grid } from "../Shared/Game/Grid";
-import { GameUI } from "../Shared/Game/GameUI";
+import { GameUI } from "../Shared/UI/GameUI";
 import { GameTimer } from "../Shared/Game/GameTimer";
 import { GameLogger } from "../Shared/Game/GameLogger";
 import { CommandList } from "./CommandList";
@@ -10,43 +10,58 @@ import { Params } from "../Snake/SnakeParamsType";
 import { Team } from "../Shared/Team";
 import { Coin } from "./Coin";
 import { GridPoint } from "../Shared/Game/GridPointType";
+import { UIPoint } from "../Shared/UI/UIPoint";
+import { GameSave } from "../Shared/Game/GameSave";
 
 export class Game implements GameInterface {
-    score: number = 0;
-    highScore: number = 0;
     cheatActivated: boolean = false;
     cheatLoopCount = 0;
     canvas: HTMLCanvasElement;
     context: CanvasRenderingContext2D;
     storage: GameStorage;
     gameLogs: GameLogger;
-    lastGame: Game;
     gameUI: GameUI;
     timer: GameTimer;
     grid: Grid;
     commandList: CommandList;
     power4Params : Params;
-    teams: Team[];
+    teams: Team[] = [];
     playingTeam: Team;
     currentCoin: null|Coin = null;
     placedCoins: Coin[] = [];
 
 
-    constructor(canvas: HTMLCanvasElement, gameUI: GameUI, forceReset: boolean = false) {
+    constructor(canvas: HTMLCanvasElement, gameUI: GameUI, storage: GameStorage,  forceReset: boolean = false) {
         this.canvas = canvas;
         this.gameUI = gameUI;
         this.context = canvas.getContext("2d") as CanvasRenderingContext2D;
-        this.storage = new GameStorage(this, "game");
-        this.commandList = new CommandList();
-        this.lastGame = this.storage.load();
-        this.gameLogs = new GameLogger(this.gameUI, new GameLogs())
+        this.storage = storage;
         this.grid = new Grid(this.canvas, 7);
-        this.teams = [
-            new Team('YellowTeam', 'yellow'),
-            new Team('RedTeam', 'red'),
-        ];
-        this.playingTeam = this.teams[0];
+        this.commandList = new CommandList();
+        this.gameLogs = new GameLogger(this.gameUI, new GameLogs())
+        const lastGame = this.storage.load();
+        if (!lastGame) {            
+            this.teams = [
+                new Team('YellowTeam', 'yellow'),
+                new Team('RedTeam', 'red'),
+            ];
+            this.playingTeam = this.teams[0];
+        } else {
+            this.loadLastGame(lastGame.game)
+        }
         this.timer = new GameTimer(100);
+        this.setUI();
+    }
+
+    setUI() {
+        let UIElements:HTMLElement[] = []
+        let wrapper = document.createElement('div')
+        this.gameUI.createLeaderboard(true);
+        this.teams.forEach((team) => {
+            wrapper.appendChild(this.gameUI.newScoreElement('Score : ' + team.name + ' - ', team.name))
+        })
+        UIElements.push(wrapper);
+        this.gameUI.addToGameUI(UIElements)
     }
 
     readMessage(message: string): void {
@@ -61,11 +76,60 @@ export class Game implements GameInterface {
         return this.commandList.getAllowedCmds();
     }
 
-    checkWinner() {
-        // vérifie si 4 pieces sont aligner (ligne, colone ou diagonale)
-        // appel addPoint si c'est le cas
-        // appel reset si c'est le cas
-        // sinon rien, la partie continue
+    loadLastGame(lastGame: Game) {
+        lastGame.teams.forEach(( team ) => {
+            let loadedTeam = new Team(team.name,team.color,team.points)
+            this.teams.push(loadedTeam)
+            if (team.name === lastGame.playingTeam.name) {
+                this.playingTeam = loadedTeam;
+            }
+        })
+        if (lastGame.placedCoins.length > 0) {
+            lastGame.placedCoins.forEach((coin) => {
+                let team = this.teams.filter((team) => coin.team.name === team.getName())
+                console.log(team);
+                this.placedCoins.push(new Coin(coin.position, this.grid, this.context, team[0]))
+            })
+        }
+    }
+
+    // vérifie si 4 pieces sont alignées et de la même team (ligne, colonne ou diagonale)
+    checkWinner() : null|Team {
+        const directions = [
+            {x: 0, y: -1}, // haut
+            {x: 1, y: -1}, // haut droite
+            {x: 1, y:  0}, // droite
+            {x: 1 ,y:  1}, // bas droite
+        ]
+
+        let win = false
+        let winnerTeam: null|Team = null
+        this.placedCoins.forEach(coin => {
+            if (!win) {
+                directions.forEach(dir => {
+                    let nbCorrects = 1
+                    let currentPos = {
+                        x: coin.position.x + dir.x,
+                        y: coin.position.y + dir.y
+                    }
+                    while (
+                        nbCorrects <= 4
+                        && this.placedCoins.some(c => c.position.x == currentPos.x && c.position.y == currentPos.y && c.team == coin.team)
+                    ) {
+                        nbCorrects++
+                        currentPos.x += dir.x
+                        currentPos.y += dir.y
+                    }
+                    // team win
+                    if (nbCorrects >= 4) {
+                        win = true
+                        winnerTeam = coin.team
+                        return
+                    }
+                }) 
+            }
+        })
+        return winnerTeam
     }
     
     loop() {
@@ -85,15 +149,15 @@ export class Game implements GameInterface {
                 if (this.currentCoin) {
                     if (cmd === "place") {
                         this.place(this.currentCoin.getPosition())
-                        this.checkWinner()
+                        this.addPoint(this.checkWinner())
+
                     } else {
-                        console.log(cmd);
                         this.currentCoin.move(cmd);
                     }
                 }
             });
             this.commandList.cmdToExecute = [];
-            this.storage.save(this);
+            this.storage.save(new GameSave('P4Game',this));
             this.timer.reset();
         }
     }
@@ -102,7 +166,6 @@ export class Game implements GameInterface {
         if (!(this.grid.isCellOccupied({x:position.x , y: position.y + 1}))) {
             for (let index = 6; index > 1; index--) {
                 if (!(this.grid.isCellOccupied({x:position.x, y: index}))) {
-                    console.log(this.grid.isCellOccupied({x:position.x, y: index}));
                     this.currentCoin.setPosition({x:position.x, y: index})
                     break;
                 }
@@ -118,30 +181,41 @@ export class Game implements GameInterface {
         this.playingTeam = this.teams[(index + 1) % this.teams.length];
     }
 
-    addPoint(point: number): void {
-        this.score += point;
-        this.gameUI.addToScore(this.score);
-        if (this.score > this.highScore) {
-            this.highScore = this.score;
-            this.gameUI.addToHighScore(this.highScore);
-            this.storage.save(this);
+    addPoint(team: null|Team): void {
+        if (team === null) {
+            return
         }
-        if (this.score < 0) {
-            this.reset();
-        }
+        team.addPoint(1);
+        this.gameUI.setScore(team.getPoints(), team.name)
+        this.setHighScore()
+        this.restart(team)
     }
 
-    getParams(): Params {
-        if (this.lastGame.power4Params) {
-        return this.lastGame.power4Params;
+    setHighScore() {
+        const winingTeam = this.teams.reduce(function(prev, current) {
+            return (prev && prev.getPoints() > current.getPoints()) ? prev : current
+        })
+        this.gameUI.setHighScore(new UIPoint(winingTeam.name, winingTeam.getPoints()))
+    }
+
+    // getParams(): Params {
+    //     if (this.lastGame.power4Params) {
+    //     return this.lastGame.power4Params;
+    //     }
+    //     return this.power4Params;
+    // }
+
+    restart(team: Team) {
+        this.grid.clearCells();
+        this.placedCoins = [];
+        if (team === this.playingTeam) {
+            this.setNextTeam()
         }
-        return this.power4Params;
     }
 
     reset() {
         this.grid.clearCells();
-        this.score = 0;
-        this.gameUI.addToScore(this.score);
+        // this.gameUI.addToScore(this.score);
         this.storage.clear();
     }
 
