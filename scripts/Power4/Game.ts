@@ -12,8 +12,9 @@ import { Coin } from "./Coin";
 import { GridPoint } from "../Shared/Game/GridPointType";
 import { UIPoint } from "../Shared/UI/UIPoint";
 import { GameSave } from "../Shared/Game/GameSave";
+import { GameTeamsInterface } from "../Shared/Game/GameTeamsInterface";
 
-export class Game implements GameInterface {
+export class Game implements GameInterface, GameTeamsInterface {
     cheatActivated: boolean = false;
     cheatLoopCount = 0;
     canvas: HTMLCanvasElement;
@@ -42,8 +43,8 @@ export class Game implements GameInterface {
         const lastGame = this.storage.load();
         if (!lastGame) {            
             this.teams = [
-                new Team('YellowTeam', '#f38d00'),
-                new Team('RedTeam', '#cb0000'),
+                new Team('Jaune', '#f38d00'),
+                new Team('Rouge', '#cb0000'),
             ];
             this.playingTeam = this.teams[0];
         } else {
@@ -51,6 +52,12 @@ export class Game implements GameInterface {
         }
         this.timer = new GameTimer(100);
         this.setUI();
+    }
+    getTeams(): Team[] {
+        return this.teams
+    }
+    getPlayingTeam(): Team {
+        return this.playingTeam;
     }
 
     setUI() {
@@ -89,6 +96,7 @@ export class Game implements GameInterface {
     }
 
     readMessage(message: string): void {
+        // @TODO Créer votter et enregistrer les cmd voté
         this.commandList.addCmdToExecute(message);
     }
 
@@ -103,6 +111,7 @@ export class Game implements GameInterface {
     loadLastGame(lastGame: Game) {
         lastGame.teams.forEach(( team ) => {
             let loadedTeam = new Team(team.name,team.color,team.points)
+            loadedTeam.setMembers(team.members)
             this.teams.push(loadedTeam)
             if (team.name === lastGame.playingTeam.name) {
                 this.playingTeam = loadedTeam;
@@ -170,13 +179,15 @@ export class Game implements GameInterface {
         if (this.timer.stopWating(this.getSpeed())) {
             // update
             this.commandList.cmdToExecute.forEach((cmd) => {
+              console.log(this.teams);
                 if (this.currentCoin) {
                     if (cmd === "place") {
                         this.place(this.currentCoin.getPosition())
                         this.addPoint(this.checkWinner())
 
                     } else {
-                        this.currentCoin.move(cmd);
+
+                        this.move(cmd);
                     }
                 }
             });
@@ -184,6 +195,13 @@ export class Game implements GameInterface {
             this.storage.save(new GameSave('P4Game',this));
             this.timer.reset();
         }
+    }
+    
+    move(cmd: string) {
+        this.currentCoin.setPosition({
+            x: parseInt(cmd) - 1,
+            y: this.currentCoin.getPosition().y
+        })
     }
 
     place(position: GridPoint) {

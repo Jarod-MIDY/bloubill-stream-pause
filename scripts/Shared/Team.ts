@@ -1,7 +1,7 @@
 export class Team {
     name: string;
     color: string;
-    members: string[];
+    members: string[] = [];
     points: number;
 
     constructor(name: string, color: string, points: number = 0) {
@@ -41,5 +41,13 @@ export class Team {
 
     getMembers(): string[] {
         return this.members
+    }
+
+    setMembers(members: string[]) {
+        this.members = members
+    }
+
+    findMember(member: string): boolean {
+        return this.members.includes(member)
     }
 }

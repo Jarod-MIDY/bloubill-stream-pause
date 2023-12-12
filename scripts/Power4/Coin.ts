@@ -27,14 +27,6 @@ export class Coin {
         return this.position;
     }
 
-    move(direction: string) {
-        if (direction === 'right') {
-            this.position.x = (this.position.x + 1) % this.grid.getGridSize()
-        } else if (direction === 'left') {
-            this.position.x = (this.grid.getGridSize() + this.position.x - 1) % this.grid.getGridSize()
-        }
-    }
-
     draw() {
         this.context.fillStyle = this.team.color;
         this.context.beginPath();

@@ -1,19 +1,16 @@
 export class CommandList {
   placeCmd: string[] = ["place"];
-  leftCmd: string[] = ["gauche", "left"];
-  rightCmd: string[] = ["droite", "right"];
+  moveCmd: string[] = ["move [1-6]", "deplacer [1-6]"];
 
   cmdToExecute: string[] = [];
-
   cheatCommand: string[] = ["nope"];
 
   aliasToCmd(cmd: string): string {
+    console.log(cmd);
     if (this.placeCmd.includes(cmd)) {
       return "place";
-    } else if (this.leftCmd.includes(cmd)) {
-      return "left";
-    } else if (this.rightCmd.includes(cmd)) {
-      return "right";
+    } else {
+      return cmd.substring(cmd.length - 1);
     }
   }
 
@@ -28,8 +25,7 @@ export class CommandList {
   getAllowedCmds(): string {
     return [
       ...this.placeCmd,
-      ...this.leftCmd,
-      ...this.rightCmd,
+      ...this.moveCmd,
     ].join("|");
   }
 }
