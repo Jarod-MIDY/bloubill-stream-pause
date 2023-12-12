@@ -1,5 +1,7 @@
+import { CommandList } from "../../Power4/CommandList";
+
 export interface GameInterface {
-  readMessage(message: string): void;
+  readMessage(message: string, userId: string): void;
 
   toggleCheat(cheatCode: boolean): void;
 

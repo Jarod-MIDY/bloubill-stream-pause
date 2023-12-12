@@ -21,7 +21,7 @@ export class TeamManager {
     }
 
     joinTeam(teamName: string, userId: string) {
-        const team = this.teams.find((team) => team.name === teamName);
+        const team = this.teams.find((team) => team.name.toLowerCase() === teamName.toLowerCase());
         if (team) {
             this.teams.forEach((team) => {
                 if (team.findMember(userId)) {

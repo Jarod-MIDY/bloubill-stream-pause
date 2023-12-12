@@ -13,6 +13,7 @@ import { GridPoint } from "../Shared/Game/GridPointType";
 import { UIPoint } from "../Shared/UI/UIPoint";
 import { GameSave } from "../Shared/Game/GameSave";
 import { GameTeamsInterface } from "../Shared/Game/GameTeamsInterface";
+import { GameVoter } from "./GameVoter";
 
 export class Game implements GameInterface, GameTeamsInterface {
     cheatActivated: boolean = false;
@@ -22,23 +23,21 @@ export class Game implements GameInterface, GameTeamsInterface {
     storage: GameStorage;
     gameLogs: GameLogger;
     gameUI: GameUI;
-    timer: GameTimer;
     grid: Grid;
-    commandList: CommandList;
     power4Params : Params;
     teams: Team[] = [];
     playingTeam: Team;
     currentCoin: null|Coin = null;
     placedCoins: Coin[] = [];
-
+    voter: GameVoter;
 
     constructor(canvas: HTMLCanvasElement, gameUI: GameUI, storage: GameStorage,  forceReset: boolean = false) {
+        this.voter = new GameVoter(this, 1500);
         this.canvas = canvas;
         this.gameUI = gameUI;
         this.context = canvas.getContext("2d") as CanvasRenderingContext2D;
         this.storage = storage;
         this.grid = new Grid(this.canvas, 7);
-        this.commandList = new CommandList();
         this.gameLogs = new GameLogger(this.gameUI, new GameLogs())
         const lastGame = this.storage.load();
         if (!lastGame) {            
@@ -50,9 +49,9 @@ export class Game implements GameInterface, GameTeamsInterface {
         } else {
             this.loadLastGame(lastGame.game)
         }
-        this.timer = new GameTimer(100);
         this.setUI();
     }
+
     getTeams(): Team[] {
         return this.teams
     }
@@ -95,9 +94,8 @@ export class Game implements GameInterface, GameTeamsInterface {
         }
     }
 
-    readMessage(message: string): void {
-        // @TODO Créer votter et enregistrer les cmd voté
-        this.commandList.addCmdToExecute(message);
+    readMessage(message: string, userId: string): void {
+        this.voter.addVote(message, userId, this.playingTeam)
     }
 
     getSpeed(): number {
@@ -105,7 +103,7 @@ export class Game implements GameInterface, GameTeamsInterface {
     }
 
     getAllowedMessages(): string {
-        return this.commandList.getAllowedCmds();
+        return this.voter.getCmds();
     }
 
     loadLastGame(lastGame: Game) {
@@ -165,6 +163,7 @@ export class Game implements GameInterface, GameTeamsInterface {
     }
     
     loop() {
+        // this.reset()
         // clear frame
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.drawP4Grid()
@@ -176,35 +175,28 @@ export class Game implements GameInterface, GameTeamsInterface {
         this.placedCoins.forEach((coin) => {
             coin.draw()
         })
-        if (this.timer.stopWating(this.getSpeed())) {
-            // update
-            this.commandList.cmdToExecute.forEach((cmd) => {
-              console.log(this.teams);
-                if (this.currentCoin) {
-                    if (cmd === "place") {
-                        this.place(this.currentCoin.getPosition())
-                        this.addPoint(this.checkWinner())
 
-                    } else {
-
-                        this.move(cmd);
-                    }
-                }
-            });
-            this.commandList.cmdToExecute = [];
-            this.storage.save(new GameSave('P4Game',this));
-            this.timer.reset();
+        if (this.voter.voteHasEnded()) {
+            console.log(this.voter.end);
+            if (this.currentCoin) {
+                this.move(this.voter.getVotedCMD());
+            }
+            this.voter.reset();
         }
+        this.storage.save(new GameSave('P4Game',this));
     }
     
     move(cmd: string) {
         this.currentCoin.setPosition({
             x: parseInt(cmd) - 1,
-            y: this.currentCoin.getPosition().y
+            y: 0
         })
+        console.log(cmd);
+        this.place(this.currentCoin.getPosition())
     }
 
     place(position: GridPoint) {
+        console.log('place');
         if (!(this.grid.isCellOccupied({x:position.x , y: position.y + 1})) && position.y + 1 < 7) {
             for (let index = 6; index > 0; index--) {
                 if (!(this.grid.isCellOccupied({x:position.x, y: index}))) {
@@ -216,6 +208,7 @@ export class Game implements GameInterface, GameTeamsInterface {
             this.currentCoin = null;
             this.setNextTeam();
         }
+        this.addPoint(this.checkWinner())
     }
 
     setNextTeam() {
@@ -251,6 +244,7 @@ export class Game implements GameInterface, GameTeamsInterface {
     reset() {
         this.grid.clearCells();
         this.storage.clear();
+        this.placedCoins = [];
     }
 
     toggleCheat(bool = false) {
@@ -258,6 +252,6 @@ export class Game implements GameInterface, GameTeamsInterface {
     }
 
     getCheatCommand(): string[] {
-        return this.commandList.cheatCommand;
+        return [''];
     }
 }

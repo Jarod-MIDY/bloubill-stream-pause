@@ -2476,25 +2476,6 @@ ${JSON.stringify(message, null, 4)}`);
     }
   };
 
-  // scripts/Shared/Game/GameTimer.ts
-  var GameTimer = class {
-    waitingTime;
-    now;
-    constructor(waitingTime) {
-      this.waitingTime = waitingTime;
-      this.now = Date.now();
-    }
-    getTimeElapsed() {
-      return Date.now() - this.now;
-    }
-    stopWating(timeOffset = 0) {
-      return this.getTimeElapsed() >= this.waitingTime + timeOffset;
-    }
-    reset() {
-      this.now = Date.now();
-    }
-  };
-
   // scripts/Shared/Game/GameLogger.ts
   var GameLogger = class {
     gameUI;
@@ -2505,34 +2486,6 @@ ${JSON.stringify(message, null, 4)}`);
     }
     addLog(logName) {
       this.gameUI.addLogEvent(this.logList.getLogText(logName));
-    }
-  };
-
-  // scripts/Power4/CommandList.ts
-  var CommandList = class {
-    placeCmd = ["place"];
-    moveCmd = ["move [1-6]", "deplacer [1-6]"];
-    cmdToExecute = [];
-    cheatCommand = ["nope"];
-    aliasToCmd(cmd) {
-      console.log(cmd);
-      if (this.placeCmd.includes(cmd)) {
-        return "place";
-      } else {
-        return cmd.substring(cmd.length - 1);
-      }
-    }
-    addCmdToExecute(cmd) {
-      this.cmdToExecute.push(this.aliasToCmd(cmd));
-    }
-    getCmds() {
-      return this.cmdToExecute;
-    }
-    getAllowedCmds() {
-      return [
-        ...this.placeCmd,
-        ...this.moveCmd
-      ].join("|");
     }
   };
 
@@ -2657,6 +2610,86 @@ ${JSON.stringify(message, null, 4)}`);
     }
   };
 
+  // scripts/Shared/Game/GameTimer.ts
+  var GameTimer = class {
+    waitingTime;
+    now;
+    constructor(waitingTime) {
+      this.waitingTime = waitingTime;
+      this.now = Date.now();
+    }
+    getTimeElapsed() {
+      return Date.now() - this.now;
+    }
+    stopWating(timeOffset = 0) {
+      return this.getTimeElapsed() >= this.waitingTime + timeOffset;
+    }
+    reset() {
+      this.now = Date.now();
+    }
+  };
+
+  // scripts/Shared/Voter/Voter.ts
+  var Voter = class {
+    timer = null;
+    votingTime;
+    votedCMD = [];
+    end = false;
+    constructor(game2, votingTime) {
+      this.votingTime = votingTime;
+    }
+    addVote(cmd, userId, playingTeam) {
+      if (!playingTeam.findMember(userId)) {
+        return;
+      }
+      if (!this.timer) {
+        console.log("Vote started");
+        this.timer = new GameTimer(this.votingTime);
+      }
+      const votedCMD = this.votedCMD.find((votedCmd) => votedCmd.cmd === cmd);
+      if (votedCMD && !this.timer.stopWating()) {
+        votedCMD.nbVote += 1;
+        console.log(userId + "voted " + cmd);
+      } else {
+        this.end = true;
+        console.log("Vote has ended");
+      }
+    }
+    getVotedCMD() {
+      const maxVoted = Math.max(...this.votedCMD.map((votedCmd) => votedCmd.nbVote));
+      const votedCMD = this.votedCMD.find((votedCmd) => votedCmd.nbVote === maxVoted);
+      console.log("Current team voted for " + votedCMD.cmd);
+      return votedCMD.cmd;
+    }
+    getCmds() {
+      return this.votedCMD.map((votedCmd) => votedCmd.cmd).join("|");
+    }
+    voteHasEnded() {
+      if (this.timer && this.timer.stopWating()) {
+        this.end = true;
+      }
+      return this.end;
+    }
+    reset() {
+      this.votedCMD.forEach((votedCmd) => votedCmd.nbVote = 0);
+      this.timer = null;
+      this.end = false;
+    }
+  };
+
+  // scripts/Power4/GameVoter.ts
+  var GameVoter = class extends Voter {
+    votedCMD = [
+      { cmd: "1", nbVote: 0 },
+      { cmd: "2", nbVote: 0 },
+      { cmd: "3", nbVote: 0 },
+      { cmd: "4", nbVote: 0 },
+      { cmd: "5", nbVote: 0 },
+      { cmd: "6", nbVote: 0 },
+      { cmd: "7", nbVote: 0 }
+    ];
+  };
+
   // scripts/Power4/Game.ts
   var Game = class {
     cheatActivated = false;
@@ -2666,21 +2699,20 @@ ${JSON.stringify(message, null, 4)}`);
     storage;
     gameLogs;
     gameUI;
-    timer;
     grid;
-    commandList;
     power4Params;
     teams = [];
     playingTeam;
     currentCoin = null;
     placedCoins = [];
+    voter;
     constructor(canvas, gameUI, storage, forceReset = false) {
+      this.voter = new GameVoter(this, 1500);
       this.canvas = canvas;
       this.gameUI = gameUI;
       this.context = canvas.getContext("2d");
       this.storage = storage;
       this.grid = new Grid(this.canvas, 7);
-      this.commandList = new CommandList();
       this.gameLogs = new GameLogger(this.gameUI, new GameLogs());
       const lastGame = this.storage.load();
       if (!lastGame) {
@@ -2692,7 +2724,6 @@ ${JSON.stringify(message, null, 4)}`);
       } else {
         this.loadLastGame(lastGame.game);
       }
-      this.timer = new GameTimer(100);
       this.setUI();
     }
     getTeams() {
@@ -2735,14 +2766,14 @@ ${JSON.stringify(message, null, 4)}`);
         }
       }
     }
-    readMessage(message) {
-      this.commandList.addCmdToExecute(message);
+    readMessage(message, userId) {
+      this.voter.addVote(message, userId, this.playingTeam);
     }
     getSpeed() {
       return 0;
     }
     getAllowedMessages() {
-      return this.commandList.getAllowedCmds();
+      return this.voter.getCmds();
     }
     loadLastGame(lastGame) {
       lastGame.teams.forEach((team) => {
@@ -2808,30 +2839,25 @@ ${JSON.stringify(message, null, 4)}`);
       this.placedCoins.forEach((coin) => {
         coin.draw();
       });
-      if (this.timer.stopWating(this.getSpeed())) {
-        this.commandList.cmdToExecute.forEach((cmd) => {
-          console.log(this.teams);
-          if (this.currentCoin) {
-            if (cmd === "place") {
-              this.place(this.currentCoin.getPosition());
-              this.addPoint(this.checkWinner());
-            } else {
-              this.move(cmd);
-            }
-          }
-        });
-        this.commandList.cmdToExecute = [];
-        this.storage.save(new GameSave("P4Game", this));
-        this.timer.reset();
+      if (this.voter.voteHasEnded()) {
+        console.log(this.voter.end);
+        if (this.currentCoin) {
+          this.move(this.voter.getVotedCMD());
+        }
+        this.voter.reset();
       }
+      this.storage.save(new GameSave("P4Game", this));
     }
     move(cmd) {
       this.currentCoin.setPosition({
         x: parseInt(cmd) - 1,
-        y: this.currentCoin.getPosition().y
+        y: 0
       });
+      console.log(cmd);
+      this.place(this.currentCoin.getPosition());
     }
     place(position) {
+      console.log("place");
       if (!this.grid.isCellOccupied({ x: position.x, y: position.y + 1 }) && position.y + 1 < 7) {
         for (let index = 6; index > 0; index--) {
           if (!this.grid.isCellOccupied({ x: position.x, y: index })) {
@@ -2843,6 +2869,7 @@ ${JSON.stringify(message, null, 4)}`);
         this.currentCoin = null;
         this.setNextTeam();
       }
+      this.addPoint(this.checkWinner());
     }
     setNextTeam() {
       let index = this.teams.indexOf(this.playingTeam);
@@ -2873,12 +2900,13 @@ ${JSON.stringify(message, null, 4)}`);
     reset() {
       this.grid.clearCells();
       this.storage.clear();
+      this.placedCoins = [];
     }
     toggleCheat(bool = false) {
       this.cheatActivated = bool;
     }
     getCheatCommand() {
-      return this.commandList.cheatCommand;
+      return [""];
     }
   };
 
@@ -3015,7 +3043,7 @@ ${JSON.stringify(message, null, 4)}`);
       }
     }
     joinTeam(teamName, userId) {
-      const team = this.teams.find((team2) => team2.name === teamName);
+      const team = this.teams.find((team2) => team2.name.toLowerCase() === teamName.toLowerCase());
       if (team) {
         this.teams.forEach((team2) => {
           if (team2.findMember(userId)) {
@@ -3070,7 +3098,7 @@ ${JSON.stringify(message, null, 4)}`);
     if (messageCmds.length === 0)
       return true;
     messageCmds.forEach((message2) => {
-      game.readMessage(message2);
+      game.readMessage(message2, tags["user-id"]);
     });
     messageUI.addMessage(message, tags);
   });

@@ -13,7 +13,6 @@ Client.connect();
 let gameSelector = new RandomGameSelector(urlParams)
 const game = gameSelector.getCurrentGame();
 const teamManager = new TeamManager(game);
-
 function frame() {
   game.loop();
   requestAnimationFrame(frame);
@@ -39,7 +38,7 @@ Client.on("message", (channel, tags, message, self) => {
     if (messageCmds.length === 0) return true;
     // envoie de la cmd au jeu
     messageCmds.forEach((message) => {
-    game.readMessage(message);
+    game.readMessage(message, tags['user-id']);
   });
   // affichage du message
   messageUI.addMessage(message, tags);
