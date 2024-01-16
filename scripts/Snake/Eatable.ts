@@ -4,7 +4,6 @@ import { EatablesInterface } from "./Interfaces/EatablesInterface";
 import { Snake } from "./Snake";
 
 export class Eatable implements EatablesInterface {
-
     position: GridPoint;
 
     grid: Grid;
@@ -34,7 +33,7 @@ export class Eatable implements EatablesInterface {
     ){
         this.grid = grid;
         this.context = context;
-        this.color = this.defaultColor();
+        this.color = this.colors[Math.floor(Math.random()*this.colors.length)]
     }
 
     newRandomPosition() {
@@ -44,6 +43,7 @@ export class Eatable implements EatablesInterface {
 
     setPosition(position: GridPoint): void {
         this.position = position;
+        this.grid.fillCell(this.position);
     }
 
     defaultColor():string {
@@ -52,7 +52,7 @@ export class Eatable implements EatablesInterface {
 
     getColor(cheatActivated:boolean):string {
         if (cheatActivated) {
-            return this.colors[Math.floor(Math.random()*this.colors.length)]
+            return this.defaultColor();
         }
         return this.color;
     }

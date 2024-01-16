@@ -7,7 +7,7 @@ export class GameStorage {
     this.localName = localName;
   }
 
-  load() {
+  load(): null | GameSave {
     let storage = localStorage.getItem(this.localName);
     if (storage) {
       return JSON.parse(storage);

@@ -54,7 +54,7 @@ export class Snake {
     });
     // remove cells as we move away from them
     if (this.params.cells.length > this.params.maxCells) {
-      this.params.cells.pop();
+      this.params.cells = this.params.cells.slice(0, this.params.maxCells);
     }
     this.grid.fillCell(this.params.cells[0]);
   }

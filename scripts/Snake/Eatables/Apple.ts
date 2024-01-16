@@ -7,6 +7,10 @@ export class Apple extends Eatable {
         return "red";
     }
 
+    getColor(cheatActivated:boolean):string {
+        return this.defaultColor();
+    }
+
     doEffect(snake: Snake) {
         snake.grow(1);
         return 1;

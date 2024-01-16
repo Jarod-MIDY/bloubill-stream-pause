@@ -10,7 +10,8 @@ const Client = new tmi.Client({
 });
 Client.connect();
 
-let gameSelector = new RandomGameSelector(urlParams)
+const gameSelector = new RandomGameSelector(urlParams, urlParams.get('new_game') ? true : false);
+
 const game = gameSelector.getCurrentGame();
 const teamManager = new TeamManager(game);
 function frame() {

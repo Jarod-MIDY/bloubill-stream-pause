@@ -2,9 +2,7 @@ import { GameInterface } from "../Shared/Game/GameInterface";
 import { GameStorage } from "../Shared/Game/GameStorage";
 import { Grid } from "../Shared/Game/Grid";
 import { GameUI } from "../Shared/UI/GameUI";
-import { GameTimer } from "../Shared/Game/GameTimer";
 import { GameLogger } from "../Shared/Game/GameLogger";
-import { CommandList } from "./CommandList";
 import { GameLogs } from "./GameLogs";
 import { Params } from "../Snake/SnakeParamsType";
 import { Team } from "../Shared/Team";
@@ -31,8 +29,8 @@ export class Game implements GameInterface, GameTeamsInterface {
     placedCoins: Coin[] = [];
     voter: GameVoter;
 
-    constructor(canvas: HTMLCanvasElement, gameUI: GameUI, storage: GameStorage,  forceReset: boolean = false) {
-        this.voter = new GameVoter(this, 1500);
+    constructor(canvas: HTMLCanvasElement, gameUI: GameUI, storage: GameStorage) {
+        this.voter = new GameVoter(this, 10000);
         this.canvas = canvas;
         this.gameUI = gameUI;
         this.context = canvas.getContext("2d") as CanvasRenderingContext2D;
@@ -40,14 +38,14 @@ export class Game implements GameInterface, GameTeamsInterface {
         this.grid = new Grid(this.canvas, 7);
         this.gameLogs = new GameLogger(this.gameUI, new GameLogs())
         const lastGame = this.storage.load();
-        if (!lastGame) {            
+        if (lastGame.type  === 'P4Game') {            
+            this.loadLastGame(lastGame.game as Game)
+        } else {
             this.teams = [
                 new Team('Jaune', '#f38d00'),
                 new Team('Rouge', '#cb0000'),
             ];
             this.playingTeam = this.teams[0];
-        } else {
-            this.loadLastGame(lastGame.game)
         }
         this.setUI();
     }

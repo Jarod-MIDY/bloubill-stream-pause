@@ -11,7 +11,8 @@ export class SpeedChange extends Eatable {
     }
 
     doEffect(snake: Snake) {
-        this.bool = getRandomInt(0, 1) ? true : false;
+        this.bool = Math.random() < 0.5;
+        console.log(this.bool);
         snake.setSpeedModifier(this.bool ? 50 : -25);
         return 0;
     }

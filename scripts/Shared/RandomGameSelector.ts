@@ -8,7 +8,7 @@ import { GameSave } from "./Game/GameSave";
 
 export class RandomGameSelector {
     
-    allowedGames = { P4Game };
+    allowedGames = { SnakeGame };
     
     currentGame: GameInterface;
     canvas: HTMLCanvasElement;

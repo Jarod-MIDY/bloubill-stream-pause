@@ -2425,6 +2425,8 @@ ${JSON.stringify(message, null, 4)}`);
 
   // scripts/Shared/utils.ts
   function getRandomInt(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
     return Math.floor(Math.random() * (max - min) + min);
   }
 
@@ -2476,137 +2478,326 @@ ${JSON.stringify(message, null, 4)}`);
     }
   };
 
-  // scripts/Shared/Game/GameLogger.ts
-  var GameLogger = class {
-    gameUI;
-    logList;
-    constructor(gameUI, logList) {
-      this.gameUI = gameUI;
-      this.logList = logList;
-    }
-    addLog(logName) {
-      this.gameUI.addLogEvent(this.logList.getLogText(logName));
-    }
-  };
-
-  // scripts/Power4/GameLogs.ts
-  var GameLogs = class {
-    logs = {
-      game_over: "Le snake s'est mordu lui m\xEAme ! GAME OVER",
-      apple_eaten: "Une pomme de plus pour le serpent !",
-      apple_golden_eaten: "Une pomme d'or ! Le serpent grandit de X",
-      apple_green_eaten: "Oh non ! Une pomme empoison\xE9e ! Le serpent r\xE9tr\xE9cit de 1",
-      speed_change_up: "Le serpent vas plus vite",
-      speed_change_down: "Le serpent ralentit",
-      snake_teleport: "Oh non ! Un t\xE9l\xE9porteur"
-    };
-    getLogText(logName) {
-      return this.logs[logName];
-    }
-  };
-
-  // scripts/Shared/Team.ts
-  var Team = class {
-    name;
-    color;
-    members = [];
-    points;
-    constructor(name, color, points = 0) {
-      this.name = name;
-      this.color = color;
-      this.points = points;
-    }
-    getName() {
-      return this.name;
-    }
-    addPoint(point) {
-      this.points += point;
-    }
-    getPoints() {
-      return this.points;
-    }
-    resetPoints() {
-      this.points = 0;
-    }
-    addMember(member) {
-      this.members.push(member);
-    }
-    removeMember(member) {
-      const index = this.members.indexOf(member);
-      if (index > -1) {
-        this.members.splice(index, 1);
-        return true;
-      }
-      return false;
-    }
-    getMembers() {
-      return this.members;
-    }
-    setMembers(members) {
-      this.members = members;
-    }
-    findMember(member) {
-      return this.members.includes(member);
-    }
-  };
-
-  // scripts/Power4/Coin.ts
-  var Coin = class {
+  // scripts/Snake/Eatable.ts
+  var Eatable = class {
     position;
     grid;
     context;
-    team;
-    constructor(position, grid, context, team) {
-      this.position = position;
+    type = this.constructor.name;
+    color;
+    colors = [
+      "pink",
+      "navy",
+      "deeppink",
+      "orange",
+      "orangered",
+      "chartreuse",
+      "yellow",
+      "purple",
+      "blue",
+      "purple",
+      "green",
+      "brown"
+    ];
+    constructor(grid, context) {
       this.grid = grid;
-      this.team = team;
       this.context = context;
-      this.grid.fillCell(position);
+      this.color = this.colors[Math.floor(Math.random() * this.colors.length)];
+    }
+    newRandomPosition() {
+      this.grid.clearCell(this.position);
+      this.position = this.grid.generateRandomPoint();
     }
     setPosition(position) {
-      this.grid.clearCell(this.position);
       this.position = position;
       this.grid.fillCell(this.position);
     }
-    getPosition() {
-      return this.position;
+    defaultColor() {
+      return "gray";
+    }
+    getColor(cheatActivated) {
+      if (cheatActivated) {
+        return this.defaultColor();
+      }
+      return this.color;
+    }
+    doEffect(snake) {
+      return 0;
+    }
+    getLogName() {
+      return "eatable_default";
+    }
+    draw(cheatActivated = false) {
+      this.context.fillStyle = this.getColor(cheatActivated);
+      this.context.fillRect(
+        this.position.x * this.grid.getCellWidth(),
+        this.position.y * this.grid.getCellWidth(),
+        this.grid.getCellWidth() - 1,
+        this.grid.getCellWidth() - 1
+      );
+    }
+  };
+
+  // scripts/Snake/Eatables/Teleport.ts
+  var Teleport = class extends Eatable {
+    defaultColor() {
+      return "purple";
+    }
+    doEffect(snake) {
+      this.grid.clearCell(snake.params.cells[0]);
+      snake.params.cells = [];
+      snake.params.position = this.grid.generateRandomPoint();
+      this.grid.fillCell(snake.params.position);
+      return 0;
+    }
+    getLogName() {
+      return "snake_teleport";
+    }
+  };
+
+  // scripts/Snake/Eatables/SpeedChange.ts
+  var SpeedChange = class extends Eatable {
+    bool;
+    defaultColor() {
+      return "blue";
+    }
+    doEffect(snake) {
+      this.bool = Math.random() < 0.5;
+      console.log(this.bool);
+      snake.setSpeedModifier(this.bool ? 50 : -25);
+      return 0;
+    }
+    getLogName() {
+      return this.bool ? "speed_change_up" : "speed_change_down";
+    }
+  };
+
+  // scripts/Snake/Eatables/AppleGolden.ts
+  var AppleGolden = class extends Eatable {
+    defaultColor() {
+      return "gold";
+    }
+    doEffect(snake) {
+      let points = getRandomInt(2, 5);
+      snake.grow(points);
+      return points;
+    }
+    getLogName() {
+      return "apple_golden_eaten";
+    }
+  };
+
+  // scripts/Snake/Eatables/AppleGreen.ts
+  var AppleGreen = class extends Eatable {
+    defaultColor() {
+      return "green";
+    }
+    doEffect(snake) {
+      snake.grow(-1);
+      return -1;
+    }
+    getLogName() {
+      return "apple_green_eaten";
+    }
+  };
+
+  // scripts/Snake/Eatables/Apple.ts
+  var Apple = class extends Eatable {
+    defaultColor() {
+      return "red";
+    }
+    getColor(cheatActivated) {
+      return this.defaultColor();
+    }
+    doEffect(snake) {
+      snake.grow(1);
+      return 1;
+    }
+    getLogName() {
+      return "apple_eaten";
+    }
+  };
+
+  // scripts/Snake/EatableFactory.ts
+  var EatableFactory = class {
+    eatables = {
+      Teleport: {
+        proba: 10,
+        type: Teleport
+      },
+      SpeedChange: {
+        proba: 30,
+        type: SpeedChange
+      },
+      AppleGolden: {
+        proba: 10,
+        type: AppleGolden
+      },
+      AppleGreen: {
+        proba: 50,
+        type: AppleGreen
+      }
+    };
+    context;
+    grid;
+    position = { x: 0, y: 0 };
+    constructor(context, grid) {
+      this.context = context;
+      this.grid = grid;
+    }
+    selectTypeByProbability() {
+      const totalProbability = Object.values(this.eatables).reduce((sum, typeData) => sum + typeData.proba, 0);
+      let rand = Math.floor(Math.random() * totalProbability) + 1;
+      for (const [typeName, typeData] of Object.entries(this.eatables)) {
+        const probability = typeData.proba;
+        if (rand <= probability) {
+          return typeName;
+        }
+        rand -= probability;
+      }
+      return Object.keys(this.eatables)[Object.keys(this.eatables).length - 1];
+    }
+    getNewEatable(type, position) {
+      if (!type) {
+        type = this.selectTypeByProbability();
+      }
+      const Eatable2 = this.getEatable(type);
+      if (position) {
+        Eatable2.setPosition(position);
+      } else {
+        Eatable2.newRandomPosition();
+      }
+      return Eatable2;
+    }
+    getEatable(type) {
+      if (this.eatables[type]) {
+        console.log(this.eatables[type]);
+        return new this.eatables[type].type(this.grid, this.context);
+      } else {
+        return new Apple(this.grid, this.context);
+      }
+    }
+  };
+
+  // scripts/Snake/Snake.ts
+  var Snake = class {
+    canvas;
+    context;
+    speedModifier = 0;
+    grid;
+    params;
+    constructor(context, params, grid) {
+      this.context = context;
+      this.grid = grid;
+      this.params = params;
+      if (this.params.cells.length === 0) {
+        for (let index = 0; index < params.maxCells; index++) {
+          this.move();
+        }
+      }
     }
     draw() {
-      this.context.fillStyle = this.team.color;
-      this.context.beginPath();
-      this.context.arc(
-        (this.position.x + 0.5) * this.grid.getCellWidth(),
-        (this.position.y + 0.5) * this.grid.getCellWidth(),
-        50,
-        0,
-        2 * Math.PI
-      );
-      this.context.fill();
+      this.params.cells.forEach((cell, index) => {
+        this.context.fillStyle = "#0b852b";
+        if (index === 0) {
+          this.context.fillStyle = "#11ba3d";
+        }
+        this.context.fillRect(
+          cell.x * this.grid.getCellWidth(),
+          cell.y * this.grid.getCellWidth(),
+          this.grid.getCellWidth() - 1,
+          this.grid.getCellWidth() - 1
+        );
+      });
+    }
+    move() {
+      this.grid.clearCell(this.params.cells[0]);
+      this.params.position.x += this.params.dirX;
+      this.params.position.y += this.params.dirY;
+      this.params.position.x = (this.params.position.x + this.grid.getGridSize()) % this.grid.getGridSize();
+      this.params.position.y = (this.params.position.y + this.grid.getGridSize()) % this.grid.getGridSize();
+      this.params.cells.unshift({
+        x: this.params.position.x,
+        y: this.params.position.y
+      });
+      if (this.params.cells.length > this.params.maxCells) {
+        this.params.cells = this.params.cells.slice(0, this.params.maxCells);
+      }
+      this.grid.fillCell(this.params.cells[0]);
+    }
+    updateDirection(message) {
+      const allowedDirectionChanges = {
+        whenVertical: {
+          left: [-1, 0],
+          right: [1, 0],
+          up: [this.params.dirX, this.params.dirY],
+          down: [this.params.dirX, this.params.dirY],
+          reverse: [-this.params.dirX, -this.params.dirY]
+        },
+        whenHorizontal: {
+          left: [this.params.dirX, this.params.dirY],
+          right: [this.params.dirX, this.params.dirY],
+          up: [0, -1],
+          down: [0, 1],
+          reverse: [-this.params.dirX, -this.params.dirY]
+        }
+      };
+      if (message === "reverse") {
+        this.params.cells.reverse();
+        this.params.position.x = this.params.cells[0].x;
+        this.params.position.y = this.params.cells[0].y;
+      }
+      const currentDirection = this.params.dirX === 0 ? "whenVertical" : "whenHorizontal";
+      this.params.dirX = allowedDirectionChanges[currentDirection][message][0];
+      this.params.dirY = allowedDirectionChanges[currentDirection][message][1];
+    }
+    grow(growth) {
+      this.params.maxCells += growth;
+    }
+    getSpeed() {
+      return this.params.maxCells + this.speedModifier;
+    }
+    setSpeedModifier(speed) {
+      this.speedModifier = speed;
     }
   };
 
-  // scripts/Shared/UI/UIPoint.ts
-  var UIPoint = class {
-    pointOwner;
-    point;
-    constructor(pointOwner, point) {
-      this.pointOwner = pointOwner;
-      this.point = point;
+  // scripts/Snake/CommandList.ts
+  var CommandList = class {
+    upCmd = ["haut", "up", "good", "bon"];
+    downCmd = ["bas", "down", "evil", "mauvais"];
+    leftCmd = ["gauche", "left", "communiste", "jlm"];
+    rightCmd = ["droite", "right", "fn", "mlp"];
+    reverseCmd = ["arriere", "reverse", "rem", "macron"];
+    cmdToExecute = [];
+    cheatCommand = ["haut", "gauche", "gauche", "bas", "reverse"];
+    aliasToCmd(cmd) {
+      if (this.upCmd.includes(cmd)) {
+        return "up";
+      } else if (this.downCmd.includes(cmd)) {
+        return "down";
+      } else if (this.leftCmd.includes(cmd)) {
+        return "left";
+      } else if (this.rightCmd.includes(cmd)) {
+        return "right";
+      } else if (this.reverseCmd.includes(cmd)) {
+        return "reverse";
+      }
     }
-    toString() {
-      return this.pointOwner + " : " + this.point.toString();
+    addCmdToExecute(cmd) {
+      this.cmdToExecute.push(this.aliasToCmd(cmd));
     }
-  };
-
-  // scripts/Shared/Game/GameSave.ts
-  var GameSave = class {
-    savedAt;
-    type;
-    game;
-    constructor(type, game2) {
-      this.savedAt = Date.now();
-      this.type = type;
-      this.game = game2;
+    getCmds() {
+      return this.cmdToExecute;
+    }
+    getAllowedCmds() {
+      return [
+        ...this.upCmd,
+        ...this.downCmd,
+        ...this.leftCmd,
+        ...this.rightCmd,
+        ...this.reverseCmd
+      ].join("|");
     }
   };
 
@@ -2629,284 +2820,191 @@ ${JSON.stringify(message, null, 4)}`);
     }
   };
 
-  // scripts/Shared/Voter/Voter.ts
-  var Voter = class {
-    timer = null;
-    votingTime;
-    votedCMD = [];
-    end = false;
-    constructor(game2, votingTime) {
-      this.votingTime = votingTime;
+  // scripts/Shared/Game/GameLogger.ts
+  var GameLogger = class {
+    gameUI;
+    logList;
+    constructor(gameUI, logList) {
+      this.gameUI = gameUI;
+      this.logList = logList;
     }
-    addVote(cmd, userId, playingTeam) {
-      if (!playingTeam.findMember(userId)) {
-        return;
-      }
-      if (!this.timer) {
-        console.log("Vote started");
-        this.timer = new GameTimer(this.votingTime);
-      }
-      const votedCMD = this.votedCMD.find((votedCmd) => votedCmd.cmd === cmd);
-      if (votedCMD && !this.timer.stopWating()) {
-        votedCMD.nbVote += 1;
-        console.log(userId + "voted " + cmd);
-      } else {
-        this.end = true;
-        console.log("Vote has ended");
-      }
-    }
-    getVotedCMD() {
-      const maxVoted = Math.max(...this.votedCMD.map((votedCmd) => votedCmd.nbVote));
-      const votedCMD = this.votedCMD.find((votedCmd) => votedCmd.nbVote === maxVoted);
-      console.log("Current team voted for " + votedCMD.cmd);
-      return votedCMD.cmd;
-    }
-    getCmds() {
-      return this.votedCMD.map((votedCmd) => votedCmd.cmd).join("|");
-    }
-    voteHasEnded() {
-      if (this.timer && this.timer.stopWating()) {
-        this.end = true;
-      }
-      return this.end;
-    }
-    reset() {
-      this.votedCMD.forEach((votedCmd) => votedCmd.nbVote = 0);
-      this.timer = null;
-      this.end = false;
+    addLog(logName) {
+      this.gameUI.addLogEvent(this.logList.getLogText(logName));
     }
   };
 
-  // scripts/Power4/GameVoter.ts
-  var GameVoter = class extends Voter {
-    votedCMD = [
-      { cmd: "1", nbVote: 0 },
-      { cmd: "2", nbVote: 0 },
-      { cmd: "3", nbVote: 0 },
-      { cmd: "4", nbVote: 0 },
-      { cmd: "5", nbVote: 0 },
-      { cmd: "6", nbVote: 0 },
-      { cmd: "7", nbVote: 0 }
-    ];
+  // scripts/Snake/GameLogs.ts
+  var GameLogs = class {
+    logs = {
+      game_over: "Le snake s'est mordu lui m\xEAme ! GAME OVER",
+      apple_eaten: "Une pomme de plus pour le serpent !",
+      apple_golden_eaten: "Une pomme d'or ! Le serpent grandit de X",
+      apple_green_eaten: "Oh non ! Une pomme empoison\xE9e ! Le serpent r\xE9tr\xE9cit de 1",
+      speed_change_up: "Le serpent vas plus vite",
+      speed_change_down: "Le serpent ralentit",
+      snake_teleport: "Oh non ! Un t\xE9l\xE9porteur"
+    };
+    getLogText(logName) {
+      return this.logs[logName];
+    }
   };
 
-  // scripts/Power4/Game.ts
+  // scripts/Shared/Game/GameSave.ts
+  var GameSave = class {
+    savedAt;
+    type;
+    game;
+    constructor(type, game2) {
+      this.savedAt = Date.now();
+      this.type = type;
+      this.game = game2;
+    }
+  };
+
+  // scripts/Snake/Game.ts
   var Game = class {
+    score = 0;
+    highScore = 0;
+    snakeParams = {
+      position: { x: 5, y: 5 },
+      dirX: 1,
+      dirY: 0,
+      cells: [],
+      maxCells: 4
+    };
     cheatActivated = false;
     cheatLoopCount = 0;
     canvas;
     context;
+    commandList;
     storage;
     gameLogs;
+    lastGame;
     gameUI;
+    timer;
     grid;
-    power4Params;
-    teams = [];
-    playingTeam;
-    currentCoin = null;
-    placedCoins = [];
-    voter;
-    constructor(canvas, gameUI, storage, forceReset = false) {
-      this.voter = new GameVoter(this, 1500);
+    snake;
+    eatables = [];
+    EatableFactory;
+    constructor(canvas, gameUI, storage) {
       this.canvas = canvas;
       this.gameUI = gameUI;
-      this.context = canvas.getContext("2d");
       this.storage = storage;
-      this.grid = new Grid(this.canvas, 7);
-      this.gameLogs = new GameLogger(this.gameUI, new GameLogs());
-      const lastGame = this.storage.load();
-      if (!lastGame) {
-        this.teams = [
-          new Team("Jaune", "#f38d00"),
-          new Team("Rouge", "#cb0000")
-        ];
-        this.playingTeam = this.teams[0];
-      } else {
-        this.loadLastGame(lastGame.game);
-      }
       this.setUI();
-    }
-    getTeams() {
-      return this.teams;
-    }
-    getPlayingTeam() {
-      return this.playingTeam;
-    }
-    setUI() {
-      let UIElements = [];
-      let wrapper = document.createElement("div");
-      this.gameUI.createLeaderboard(true);
-      this.teams.forEach((team) => {
-        wrapper.appendChild(this.gameUI.newScoreElement("Score : " + team.name + " - ", team.name));
-      });
-      UIElements.push(wrapper);
-      this.gameUI.addToGameUI(UIElements);
-      this.context.fillStyle = "pink";
-    }
-    drawP4Grid() {
-      this.context.fillStyle = "#0000d9";
-      this.context.fillRect(
-        0,
-        1 * this.grid.getCellWidth(),
-        this.grid.getCellWidth() * this.grid.getGridSize(),
-        this.grid.getCellWidth() * this.grid.getGridSize() - 1
-      );
-      for (let i = this.grid.getGridSize() - 1; i > 0; i--) {
-        for (let j = 0; j < this.grid.getGridSize(); j++) {
-          this.context.fillStyle = "#bababa";
-          this.context.beginPath();
-          this.context.arc(
-            (j + 0.5) * this.grid.getCellWidth(),
-            (i + 0.5) * this.grid.getCellWidth(),
-            50,
-            0,
-            2 * Math.PI
-          );
-          this.context.fill();
-        }
+      this.context = canvas.getContext("2d");
+      this.commandList = new CommandList();
+      this.lastGame = this.storage.load();
+      console.log(this.lastGame);
+      this.gameLogs = new GameLogger(this.gameUI, new GameLogs());
+      this.grid = new Grid(this.canvas, 25);
+      this.EatableFactory = new EatableFactory(this.context, this.grid);
+      if (this.lastGame && this.lastGame.type === "SnakeGame") {
+        this.loadLastGame(this.lastGame.game);
+      } else {
+        this.snake = new Snake(this.context, this.snakeParams, this.grid);
+        this.eatables.push(this.EatableFactory.getNewEatable("Apple"));
       }
-    }
-    readMessage(message, userId) {
-      this.voter.addVote(message, userId, this.playingTeam);
-    }
-    getSpeed() {
-      return 0;
-    }
-    getAllowedMessages() {
-      return this.voter.getCmds();
+      this.timer = new GameTimer(1e3);
     }
     loadLastGame(lastGame) {
-      lastGame.teams.forEach((team) => {
-        let loadedTeam = new Team(team.name, team.color, team.points);
-        loadedTeam.setMembers(team.members);
-        this.teams.push(loadedTeam);
-        if (team.name === lastGame.playingTeam.name) {
-          this.playingTeam = loadedTeam;
-        }
+      this.snake = new Snake(this.context, lastGame.snake.params, this.grid);
+      lastGame.eatables.forEach((eatable) => {
+        this.eatables.push(this.EatableFactory.getNewEatable(eatable.type, eatable.position));
       });
-      if (lastGame.placedCoins.length > 0) {
-        lastGame.placedCoins.forEach((coin) => {
-          let team = this.teams.filter((team2) => coin.team.name === team2.getName());
-          this.placedCoins.push(new Coin(coin.position, this.grid, this.context, team[0]));
-        });
-      }
+      this.gameUI.setHighScore(lastGame.highScore);
+      this.gameUI.setScore(lastGame.score);
+      this.score = lastGame.score;
+      this.highScore = lastGame.highScore;
     }
-    // vérifie si 4 pieces sont alignées et de la même team (ligne, colonne ou diagonale)
-    checkWinner() {
-      const directions = [
-        { x: 0, y: -1 },
-        // haut
-        { x: 1, y: -1 },
-        // haut droite
-        { x: 1, y: 0 },
-        // droite
-        { x: 1, y: 1 }
-        // bas droite
-      ];
-      let win = false;
-      let winnerTeam = null;
-      this.placedCoins.forEach((coin) => {
-        if (!win) {
-          directions.forEach((dir) => {
-            let nbCorrects = 1;
-            let currentPos = {
-              x: coin.position.x + dir.x,
-              y: coin.position.y + dir.y
-            };
-            while (nbCorrects <= 4 && this.placedCoins.some((c) => c.position.x == currentPos.x && c.position.y == currentPos.y && c.team == coin.team)) {
-              nbCorrects++;
-              currentPos.x += dir.x;
-              currentPos.y += dir.y;
-            }
-            if (nbCorrects >= 4) {
-              win = true;
-              winnerTeam = coin.team;
-              return;
-            }
-          });
-        }
-      });
-      return winnerTeam;
+    readMessage(message) {
+      this.commandList.addCmdToExecute(message);
+    }
+    getSpeed() {
+      return this.snake.getSpeed();
+    }
+    getAllowedMessages() {
+      return this.commandList.getAllowedCmds();
+    }
+    setUI() {
+      this.gameUI.createLeaderboard();
     }
     loop() {
       this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      this.drawP4Grid();
-      if (null === this.currentCoin) {
-        this.currentCoin = new Coin({ x: 0, y: 0 }, this.grid, this.context, this.playingTeam);
-      } else {
-        this.currentCoin.draw();
-      }
-      this.placedCoins.forEach((coin) => {
-        coin.draw();
-      });
-      if (this.voter.voteHasEnded()) {
-        console.log(this.voter.end);
-        if (this.currentCoin) {
-          this.move(this.voter.getVotedCMD());
+      if (this.timer.stopWating(this.getSpeed())) {
+        this.commandList.cmdToExecute.forEach((cmd) => {
+          this.snake.updateDirection(cmd);
+          this.snake.move();
+        });
+        if (!this.commandList.cmdToExecute.length)
+          this.snake.move();
+        this.commandList.cmdToExecute = [];
+        this.timer.reset();
+        this.manageColision();
+        if (this.eatables.length < Math.floor(this.score / 2)) {
+          this.eatables.push(this.EatableFactory.getNewEatable());
         }
-        this.voter.reset();
+        this.storage.save(new GameSave("SnakeGame", this));
       }
-      this.storage.save(new GameSave("P4Game", this));
-    }
-    move(cmd) {
-      this.currentCoin.setPosition({
-        x: parseInt(cmd) - 1,
-        y: 0
-      });
-      console.log(cmd);
-      this.place(this.currentCoin.getPosition());
-    }
-    place(position) {
-      console.log("place");
-      if (!this.grid.isCellOccupied({ x: position.x, y: position.y + 1 }) && position.y + 1 < 7) {
-        for (let index = 6; index > 0; index--) {
-          if (!this.grid.isCellOccupied({ x: position.x, y: index })) {
-            this.currentCoin.setPosition({ x: position.x, y: index });
-            break;
-          }
-        }
-        this.placedCoins.push(this.currentCoin);
-        this.currentCoin = null;
-        this.setNextTeam();
+      if (this.cheatLoopCount === 600) {
+        this.cheatActivated = false;
+        this.cheatLoopCount = 0;
+      } else if (this.cheatActivated) {
+        this.cheatLoopCount++;
       }
-      this.addPoint(this.checkWinner());
+      this.snake.draw();
+      if (this.eatables.length > 0) {
+        this.eatables.forEach((eatable) => {
+          eatable.draw(this.cheatActivated);
+        });
+      }
     }
-    setNextTeam() {
-      let index = this.teams.indexOf(this.playingTeam);
-      this.playingTeam = this.teams[(index + 1) % this.teams.length];
-    }
-    addPoint(team) {
-      if (team === null) {
+    manageColision() {
+      let head = this.snake.params.cells[0];
+      if (this.snake.params.cells.findIndex((bodyPart, i) => {
+        return i != 0 && head.x == bodyPart.x && head.y == bodyPart.y;
+      }) !== -1) {
+        this.gameLogs.addLog("game_over");
+        this.reset();
         return;
       }
-      team.addPoint(1);
-      this.gameUI.setScore(team.getPoints(), team.name);
-      this.setHighScore();
-      this.restart(team);
-    }
-    setHighScore() {
-      const winingTeam = this.teams.reduce(function(prev, current) {
-        return prev && prev.getPoints() > current.getPoints() ? prev : current;
+      let collidedEatable = this.eatables.find((eatable) => {
+        return head.x == eatable.position.x && head.y == eatable.position.y;
       });
-      this.gameUI.setHighScore(new UIPoint(winingTeam.name, winingTeam.getPoints()));
+      if (collidedEatable) {
+        this.addPoint(collidedEatable.doEffect(this.snake));
+        this.gameLogs.addLog(collidedEatable.getLogName());
+        if (collidedEatable instanceof Apple) {
+          collidedEatable.newRandomPosition();
+        } else {
+          this.grid.clearCell(collidedEatable.position);
+          this.eatables.splice(this.eatables.indexOf(collidedEatable), 1);
+        }
+      }
     }
-    restart(team) {
-      this.grid.clearCells();
-      this.placedCoins = [];
-      if (team === this.playingTeam) {
-        this.setNextTeam();
+    addPoint(point) {
+      this.score += point;
+      this.gameUI.setScore(this.score);
+      if (this.score > this.highScore) {
+        this.highScore = this.score;
+        this.gameUI.setHighScore(this.highScore);
+      }
+      if (this.score < 0) {
+        this.reset();
       }
     }
     reset() {
       this.grid.clearCells();
+      this.snake.params = this.snakeParams;
+      this.eatables = [this.EatableFactory.getNewEatable("Apple")];
+      this.score = 0;
+      this.gameUI.setScore(this.score);
       this.storage.clear();
-      this.placedCoins = [];
     }
     toggleCheat(bool = false) {
       this.cheatActivated = bool;
     }
     getCheatCommand() {
-      return [""];
+      return this.commandList.cheatCommand;
     }
   };
 
@@ -2997,7 +3095,7 @@ ${JSON.stringify(message, null, 4)}`);
 
   // scripts/Shared/RandomGameSelector.ts
   var RandomGameSelector = class {
-    allowedGames = { P4Game: Game };
+    allowedGames = { SnakeGame: Game };
     currentGame;
     canvas;
     urlParams;
@@ -3073,7 +3171,7 @@ ${JSON.stringify(message, null, 4)}`);
     channels: ["bloubill"]
   });
   Client2.connect();
-  var gameSelector = new RandomGameSelector(urlParams);
+  var gameSelector = new RandomGameSelector(urlParams, urlParams.get("new_game") ? true : false);
   var game = gameSelector.getCurrentGame();
   var teamManager = new TeamManager(game);
   function frame() {
